@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
 import RoasterMap from '../components/RoasterMap.jsx';
 import { countryName } from '../utils/countries.js';
+import { formatBagWeight } from '../utils/units.js';
 
 const ROAST_COLORS = {
   light: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -165,13 +166,8 @@ export default function RoasterShow() {
                   </thead>
                   <tbody className="divide-y divide-amber-50">
                     {coffee.variants.map((v) => (
-                      <tr key={v.id} className={`${!v.in_stock ? 'opacity-50' : ''} ${v.is_default ? 'bg-amber-50/60' : ''}`}>
-                        <td className="px-5 py-2 font-medium text-amber-900">
-                          {v.bag_weight_grams}g
-                          {v.is_default && (
-                            <span className="ml-2 text-[10px] uppercase tracking-wide bg-amber-800 text-white px-1.5 py-0.5 rounded">default</span>
-                          )}
-                        </td>
+                      <tr key={v.id} className={!v.in_stock ? 'opacity-50' : ''}>
+                        <td className="px-5 py-2 font-medium text-amber-900">{formatBagWeight(v.bag_weight_grams)}</td>
                         <td className="px-5 py-2 text-right">${v.price.toFixed(2)}</td>
                         <td className="px-5 py-2 text-right text-amber-700 font-mono text-xs">${v.price_per_gram.toFixed(3)}</td>
                         <td className="px-5 py-2 text-right text-amber-700 font-mono text-xs">{v.cents_per_gram.toFixed(1)}¢</td>

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { flattenBeans, uniqueSorted } from '../utils/beans.js';
 import { countryName } from '../utils/countries.js';
+import { formatBagWeight } from '../utils/units.js';
 import TastingForm from '../components/TastingForm.jsx';
 import { useAuth } from '../auth.jsx';
 
@@ -42,6 +43,7 @@ export default function BeansPage() {
     roaster_country: params.get('rcountry') ?? '',
     roaster_region: params.get('rregion') ?? '',
     note: params.get('note') ?? '',
+    blend: params.get('blend') ?? '', // '' = any, 'single' = single-origin only, 'blend' = blends only
   };
 
   const PARAM_MAP = { roast_level: 'roast', search: 'q', roaster_country: 'rcountry', roaster_region: 'rregion' };
@@ -85,6 +87,8 @@ export default function BeansPage() {
     if (filters.varietal) list = list.filter((b) => b.varietal === filters.varietal);
     if (filters.roaster_country) list = list.filter((b) => b.roaster_country === filters.roaster_country);
     if (filters.roaster_region) list = list.filter((b) => b.roaster_region === filters.roaster_region);
+    if (filters.blend === 'single') list = list.filter((b) => !b.is_blend);
+    if (filters.blend === 'blend') list = list.filter((b) => b.is_blend);
     if (filters.note) {
       const note = filters.note.toLowerCase();
       list = list.filter((b) => b.tokens.some((t) => t.includes(note)));
@@ -100,6 +104,7 @@ export default function BeansPage() {
     filters.roaster_country && { key: 'roaster_country', label: `roaster country: ${countryName(filters.roaster_country)}` },
     filters.roaster_region && { key: 'roaster_region', label: `roaster state/province: ${filters.roaster_region}` },
     filters.note && { key: 'note', label: `notes: ${filters.note}` },
+    filters.blend && { key: 'blend', label: filters.blend === 'single' ? 'single-origin only' : 'blends only' },
   ].filter(Boolean);
 
   if (error) {
@@ -132,6 +137,15 @@ export default function BeansPage() {
               ))}
             </select>
           ))}
+          <select
+            value={filters.blend}
+            onChange={(e) => setFilter('blend', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-amber-800"
+          >
+            <option value="">Single-origin & blends</option>
+            <option value="single">Single-origin only</option>
+            <option value="blend">Blends only</option>
+          </select>
           <input
             type="text"
             value={filters.note}
@@ -193,6 +207,12 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
       {bean.origin && <div className="text-sm text-amber-700 mt-0.5">{bean.origin}</div>}
 
       <div className="flex flex-wrap gap-1.5 mt-2">
+        <FilterChip
+          onClick={() => onTagClick('blend', bean.is_blend ? 'blend' : 'single')}
+          color={bean.is_blend ? 'orange' : 'cyan'}
+        >
+          {bean.is_blend ? 'Blend' : 'Single-origin'}
+        </FilterChip>
         {bean.country && <FilterChip onClick={() => onTagClick('country', bean.country)} color="cyan">{bean.country}</FilterChip>}
         {bean.process && <FilterChip onClick={() => onTagClick('process', bean.process)} color="amber">{bean.process}</FilterChip>}
         {bean.roast_level && <FilterChip onClick={() => onTagClick('roast_level', bean.roast_level)} color="orange">{bean.roast_level}</FilterChip>}
@@ -206,8 +226,8 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
       {def && (
         <div className="mt-auto pt-3 border-t border-amber-100 mt-3 flex items-end justify-between gap-2 flex-wrap">
           <div className="text-xs text-amber-600">
-            Default: <span className="text-amber-900 font-medium">{def.bag_weight_grams}g</span>
-            {' '}<span className="text-amber-900 font-medium">${def.price.toFixed(2)}</span>
+            <span className="text-amber-900 font-medium">{formatBagWeight(def.bag_weight_grams)}</span>
+            {' · '}<span className="text-amber-900 font-medium">${def.price.toFixed(2)}</span>
           </div>
           <div className="flex gap-1.5">
             {user && (
