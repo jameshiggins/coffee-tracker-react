@@ -1,0 +1,62 @@
+import { createContext, useContext, useEffect, useState } from 'react';
+
+const TOKEN_KEY = 'coffee_tracker_token';
+const API_BASE = 'http://localhost:8000';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) { setUser(null); return; }
+    setLoading(true);
+    fetch(`${API_BASE}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : Promise.reject(r))
+      .then((d) => setUser(d.user))
+      .catch(() => { setToken(null); localStorage.removeItem(TOKEN_KEY); })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  function setAuthToken(t) {
+    if (t) localStorage.setItem(TOKEN_KEY, t);
+    else localStorage.removeItem(TOKEN_KEY);
+    setToken(t);
+  }
+
+  function logout() {
+    setAuthToken(null);
+  }
+
+  return (
+    <AuthContext.Provider value={{ token, user, loading, setAuthToken, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be inside <AuthProvider>');
+  return ctx;
+}
+
+export function authFetch(token, path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json', ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return fetch(`${API_BASE}/api${path}`, { ...options, headers })
+    .then(async (res) => {
+      if (!res.ok) {
+        const err = new Error(`${res.status} ${res.statusText}`);
+        err.status = res.status;
+        try { err.body = await res.json(); } catch {}
+        throw err;
+      }
+      if (res.status === 204) return null;
+      return res.json();
+    });
+}
+
+export const GOOGLE_REDIRECT_URL = `${API_BASE}/auth/google/redirect`;
