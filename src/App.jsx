@@ -20,7 +20,7 @@ export default function App() {
             <div className="flex justify-end mb-2"><AuthCorner /></div>
             <h1 className="text-4xl font-bold drop-shadow">☕ Specialty Coffee Roasters</h1>
             <p className="text-lg opacity-90 mt-2">
-              Track specialty coffee prices and discover roasters worldwide
+              Track specialty coffee prices across Canadian roasters
             </p>
             <nav className="mt-4 flex gap-2 justify-center flex-wrap">
               <NavTab to="/" end>By Roaster</NavTab>

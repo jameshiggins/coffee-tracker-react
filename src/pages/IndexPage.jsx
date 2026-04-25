@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { countryName } from '../utils/countries.js';
 
-const SORT_FIELDS = ['name', 'country', 'region', 'city', 'coffees', 'min_cpg', 'max_cpg'];
+const SORT_FIELDS = ['name', 'country', 'region', 'city', 'coffees', 'min_cpg', 'max_cpg', 'shipping_cost', 'free_shipping_over'];
 
 function priceRange(roaster) {
   const cpgs = (roaster.coffees || []).flatMap((c) => (c.variants || [])
@@ -77,6 +77,8 @@ export default function IndexPage() {
         case 'coffees': return ((a.coffees_count ?? a.coffees.length) - (b.coffees_count ?? b.coffees.length)) * mult;
         case 'min_cpg': return ((a._range.min ?? Infinity) - (b._range.min ?? Infinity)) * mult;
         case 'max_cpg': return ((a._range.max ?? Infinity) - (b._range.max ?? Infinity)) * mult;
+        case 'shipping_cost': return ((a.shipping_cost ?? Infinity) - (b.shipping_cost ?? Infinity)) * mult;
+        case 'free_shipping_over': return ((a.free_shipping_over ?? Infinity) - (b.free_shipping_over ?? Infinity)) * mult;
         case 'name':
         default:
           return a.name.localeCompare(b.name) * mult;
@@ -166,6 +168,8 @@ export default function IndexPage() {
                   ['coffees', 'Bean selection'],
                   ['min_cpg', 'Min ¢/g'],
                   ['max_cpg', 'Max ¢/g'],
+                  ['shipping_cost', 'Shipping'],
+                  ['free_shipping_over', 'Free over'],
                 ].map(([field, label]) => (
                   <th
                     key={field}
@@ -204,6 +208,12 @@ export default function IndexPage() {
                     </td>
                     <td className="px-4 py-3 font-bold text-amber-800">
                       {range.max != null ? `${range.max.toFixed(1)}¢` : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-amber-900">
+                      {r.shipping_cost != null ? `$${Number(r.shipping_cost).toFixed(2)}` : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-amber-900">
+                      {r.free_shipping_over != null ? `$${Number(r.free_shipping_over).toFixed(2)}` : <span className="text-gray-300">—</span>}
                     </td>
                   </tr>
                 );
