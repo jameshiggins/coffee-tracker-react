@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
-import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
 import RoasterMap from '../components/RoasterMap.jsx';
 import { countryName } from '../utils/countries.js';
 import { formatBagWeight } from '../utils/units.js';
@@ -17,7 +16,6 @@ export default function RoasterShow() {
   const { slug } = useParams();
   const [roaster, setRoaster] = useState(null);
   const [error, setError] = useState(null);
-  const [chartMode, setChartMode] = useState({});
 
   useEffect(() => {
     setRoaster(null);
@@ -85,26 +83,6 @@ export default function RoasterShow() {
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InfoCard icon="🚚" title="Online Shipping" available={roaster.has_shipping} badgeColor="green">
-            {roaster.has_shipping && (
-              <>
-                {roaster.shipping_cost != null && (
-                  <div className="text-sm text-amber-800">Flat rate: <span className="font-medium">${roaster.shipping_cost.toFixed(2)}</span></div>
-                )}
-                {roaster.free_shipping_over != null && (
-                  <div className="text-sm text-amber-800">Free shipping over: <span className="font-medium">${roaster.free_shipping_over.toFixed(2)}</span></div>
-                )}
-                {roaster.shipping_notes && <div className="text-sm text-amber-700 mt-1">{roaster.shipping_notes}</div>}
-              </>
-            )}
-          </InfoCard>
-          <InfoCard icon="🔁" title="Subscription" available={roaster.has_subscription} badgeColor="purple">
-            {roaster.has_subscription && roaster.subscription_notes && (
-              <div className="text-sm text-amber-700">{roaster.subscription_notes}</div>
-            )}
-          </InfoCard>
-        </div>
       </div>
 
       <h2 className="text-xl font-bold text-amber-900 mb-4">Current Offerings ({roaster.coffees.length})</h2>
@@ -117,13 +95,21 @@ export default function RoasterShow() {
         <div className="space-y-6">
           {roaster.coffees.map((coffee) => {
             const cl = ROAST_COLORS[(coffee.roast_level || '').toLowerCase()] || 'bg-amber-50 text-amber-700 border-amber-100';
-            const mode = chartMode[coffee.id] || 'price';
             return (
               <div key={coffee.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-amber-50">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex-1 min-w-[240px]">
-                      <h3 className="text-lg font-semibold text-amber-900">{coffee.name}</h3>
+                      {coffee.product_url ? (
+                        <h3 className="text-lg font-semibold">
+                          <a href={coffee.product_url} target="_blank" rel="noopener noreferrer"
+                             className="text-amber-900 hover:underline">
+                            {coffee.name} <span className="text-amber-500 text-xs">↗</span>
+                          </a>
+                        </h3>
+                      ) : (
+                        <h3 className="text-lg font-semibold text-amber-900">{coffee.name}</h3>
+                      )}
                       <div className="text-amber-700 text-sm mt-0.5">{coffee.origin}</div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {coffee.process && (
@@ -142,6 +128,13 @@ export default function RoasterShow() {
                       </div>
                       {coffee.tasting_notes && (
                         <div className="text-amber-800 text-sm italic mt-2">{coffee.tasting_notes}</div>
+                      )}
+                      {coffee.description && (
+                        <p className="text-amber-900 text-sm mt-3 leading-relaxed whitespace-pre-line">
+                          {coffee.description.length > 600
+                            ? coffee.description.slice(0, 600).trim() + '…'
+                            : coffee.description}
+                        </p>
                       )}
                     </div>
                     {coffee.best_price_per_gram && (
@@ -187,28 +180,6 @@ export default function RoasterShow() {
                   </tbody>
                 </table>
 
-                {coffee.variants.length > 0 && (
-                  <div className="p-5 bg-amber-50/40 border-t border-amber-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-amber-900">Price history</h4>
-                      <div className="flex bg-white rounded-md border border-amber-200 text-xs overflow-hidden">
-                        <button
-                          onClick={() => setChartMode((m) => ({ ...m, [coffee.id]: 'price' }))}
-                          className={`px-3 py-1 transition-colors ${mode === 'price' ? 'bg-amber-800 text-white' : 'text-amber-800 hover:bg-amber-100'}`}
-                        >
-                          $
-                        </button>
-                        <button
-                          onClick={() => setChartMode((m) => ({ ...m, [coffee.id]: 'cpg' }))}
-                          className={`px-3 py-1 transition-colors ${mode === 'cpg' ? 'bg-amber-800 text-white' : 'text-amber-800 hover:bg-amber-100'}`}
-                        >
-                          ¢/g
-                        </button>
-                      </div>
-                    </div>
-                    <PriceHistoryChart variants={coffee.variants} mode={mode === 'cpg' ? 'cpg' : 'price'} />
-                  </div>
-                )}
               </div>
             );
           })}
@@ -218,22 +189,3 @@ export default function RoasterShow() {
   );
 }
 
-function InfoCard({ icon, title, available, badgeColor, children }) {
-  const palette = badgeColor === 'purple'
-    ? 'bg-purple-100 text-purple-700 border-purple-200'
-    : 'bg-green-100 text-green-700 border-green-200';
-  return (
-    <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">{icon}</span>
-        <span className="font-semibold text-amber-900">{title}</span>
-        {available ? (
-          <span className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${palette}`}>Available</span>
-        ) : (
-          <span className="ml-auto text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full border border-amber-200">Not available</span>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}

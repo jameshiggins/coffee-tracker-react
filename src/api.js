@@ -9,5 +9,4 @@ async function getJson(path) {
 export const api = {
   listRoasters: () => getJson('/roasters'),
   getRoaster: (slug) => getJson(`/roasters/${slug}`),
-  getVariantHistory: (variantId) => getJson(`/variants/${variantId}/history`),
 };
