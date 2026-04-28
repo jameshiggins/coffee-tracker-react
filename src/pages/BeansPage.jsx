@@ -4,6 +4,8 @@ import { api } from '../api.js';
 import { flattenBeans, uniqueSorted } from '../utils/beans.js';
 import { countryName } from '../utils/countries.js';
 import { formatBagWeight } from '../utils/units.js';
+import { isCoffeeInStock } from '../utils/stock.js';
+import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
 import TastingForm from '../components/TastingForm.jsx';
 import { useAuth } from '../auth.jsx';
 
@@ -20,6 +22,7 @@ export default function BeansPage() {
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [params, setParams] = useSearchParams();
+  const [showOutOfStock, setShowOutOfStock] = useShowOutOfStock();
 
   useEffect(() => {
     api.listRoasters().then((d) => setRoasters(d.roasters)).catch((e) => setError(e.message));
@@ -93,8 +96,9 @@ export default function BeansPage() {
       const note = filters.note.toLowerCase();
       list = list.filter((b) => b.tokens.some((t) => t.includes(note)));
     }
+    if (!showOutOfStock) list = list.filter(isCoffeeInStock);
     return list;
-  }, [beans, filters]);
+  }, [beans, filters, showOutOfStock]);
 
   const activeChips = [
     filters.country && { key: 'country', label: `origin: ${filters.country}` },
@@ -153,6 +157,15 @@ export default function BeansPage() {
             placeholder="tasting note (e.g. blueberry)"
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-amber-800"
           />
+          <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none ml-2">
+            <input
+              type="checkbox"
+              checked={showOutOfStock}
+              onChange={(e) => setShowOutOfStock(e.target.checked)}
+              className="accent-amber-700"
+            />
+            Show sold out
+          </label>
         </div>
 
         {activeChips.length > 0 && (

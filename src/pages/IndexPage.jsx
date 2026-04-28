@@ -2,12 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { countryName } from '../utils/countries.js';
+import { isCoffeeInStock } from '../utils/stock.js';
+import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
 
 const SORT_FIELDS = ['name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
 
-function priceRange(roaster) {
-  const cpgs = (roaster.coffees || []).flatMap((c) => (c.variants || [])
-    .filter((v) => v.bag_weight_grams > 0)
+/**
+ * Compute the cents-per-gram range from a roaster's coffees, optionally
+ * limited to coffees that are currently in stock + variants that are
+ * currently in_stock. (Out-of-stock variants distort the headline range.)
+ */
+function priceRange(roaster, { includeOutOfStock }) {
+  const coffees = includeOutOfStock
+    ? (roaster.coffees || [])
+    : (roaster.coffees || []).filter(isCoffeeInStock);
+  const cpgs = coffees.flatMap((c) => (c.variants || [])
+    .filter((v) => v.bag_weight_grams > 0 && (includeOutOfStock || v.in_stock))
     .map((v) => (v.price / v.bag_weight_grams) * 100));
   if (cpgs.length === 0) return { min: null, max: null };
   return { min: Math.min(...cpgs), max: Math.max(...cpgs) };
@@ -15,6 +25,7 @@ function priceRange(roaster) {
 
 export default function IndexPage() {
   const navigate = useNavigate();
+  const [showOutOfStock, setShowOutOfStock] = useShowOutOfStock();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -65,8 +76,15 @@ export default function IndexPage() {
     if (country) list = list.filter((r) => r.country_code === country);
     if (shipsTo) list = list.filter((r) => (r.ships_to || []).includes(shipsTo) || (r.ships_to || []).includes('WORLDWIDE'));
 
-    // Pre-compute price ranges so sort comparators stay cheap.
-    list = list.map((r) => ({ ...r, _range: priceRange(r) }));
+    // Pre-compute in-stock count + price range so sort comparators stay cheap.
+    list = list
+      .map((r) => {
+        const inStockBeans = (r.coffees ?? []).filter(isCoffeeInStock);
+        return { ...r, _inStockCount: inStockBeans.length, _range: priceRange(r, { includeOutOfStock: showOutOfStock }) };
+      })
+      // Hide roasters with zero buyable coffees unless the user opts in
+      // (Q22: empty roasters do not display by default; Q3: toggle controls).
+      .filter((r) => showOutOfStock || r._inStockCount > 0);
 
     const mult = dir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
@@ -84,7 +102,7 @@ export default function IndexPage() {
       }
     });
     return list;
-  }, [roasters, search, region, country, shipsTo, sort, dir]);
+  }, [roasters, search, region, country, shipsTo, sort, dir, showOutOfStock]);
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
@@ -138,6 +156,15 @@ export default function IndexPage() {
               {allShipsTo.map((c) => <option key={c} value={c}>Ships to {countryName(c)}</option>)}
             </select>
           )}
+          <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showOutOfStock}
+              onChange={(e) => setShowOutOfStock(e.target.checked)}
+              className="accent-amber-700"
+            />
+            Show sold out
+          </label>
           {hasFilters && (
             <button
               onClick={() => { setSearch(''); setRegion(''); setCountry(''); setShipsTo(''); }}
@@ -200,7 +227,13 @@ export default function IndexPage() {
                     <td className="px-4 py-3 text-amber-900">{countryName(r.country_code)}</td>
                     <td className="px-4 py-3 text-amber-900">{r.region || <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3 text-amber-900">{r.city || <span className="text-gray-300">—</span>}</td>
-                    <td className="px-4 py-3 text-amber-900">{r.coffees_count ?? r.coffees.length} {(r.coffees_count ?? r.coffees.length) === 1 ? 'bean' : 'beans'}</td>
+                    <td className="px-4 py-3 text-amber-900">
+                      {showOutOfStock ? (
+                        <>{r.coffees_count ?? r.coffees.length} {(r.coffees_count ?? r.coffees.length) === 1 ? 'bean' : 'beans'}</>
+                      ) : (
+                        <>{r._inStockCount} {r._inStockCount === 1 ? 'bean' : 'beans'}</>
+                      )}
+                    </td>
                     <td className={`px-4 py-3 font-bold ${minClass} whitespace-nowrap`}>
                       {range.min != null
                         ? (range.min === range.max
