@@ -31,7 +31,6 @@ export default function IndexPage() {
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('');
   const [country, setCountry] = useState('');
-  const [shipsTo, setShipsTo] = useState('');
   const [sort, setSort] = useState('name');
   const [dir, setDir] = useState('asc');
 
@@ -49,11 +48,6 @@ export default function IndexPage() {
   const allCountries = useMemo(() => {
     if (!roasters) return [];
     return Array.from(new Set(roasters.map((r) => r.country_code).filter(Boolean))).sort();
-  }, [roasters]);
-
-  const allShipsTo = useMemo(() => {
-    if (!roasters) return [];
-    return Array.from(new Set(roasters.flatMap((r) => r.ships_to || []))).sort();
   }, [roasters]);
 
   const rows = useMemo(() => {
@@ -74,7 +68,6 @@ export default function IndexPage() {
 
     if (region) list = list.filter((r) => r.region === region);
     if (country) list = list.filter((r) => r.country_code === country);
-    if (shipsTo) list = list.filter((r) => (r.ships_to || []).includes(shipsTo) || (r.ships_to || []).includes('WORLDWIDE'));
 
     // Pre-compute in-stock count + price range so sort comparators stay cheap.
     list = list
@@ -102,7 +95,7 @@ export default function IndexPage() {
       }
     });
     return list;
-  }, [roasters, search, region, country, shipsTo, sort, dir, showOutOfStock]);
+  }, [roasters, search, region, country, sort, dir, showOutOfStock]);
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
@@ -110,7 +103,7 @@ export default function IndexPage() {
     else { setSort(field); setDir('asc'); }
   }
   const arrow = (f) => (sort === f ? (dir === 'asc' ? '↑' : '↓') : '↕');
-  const hasFilters = search || region || country || shipsTo;
+  const hasFilters = search || region || country;
 
   if (error) {
     return (
@@ -148,14 +141,6 @@ export default function IndexPage() {
               {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           )}
-          {allShipsTo.length > 0 && (
-            <select value={shipsTo} onChange={(e) => setShipsTo(e.target.value)}
-                    className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800"
-                    title="Filter to roasters that ship to this country">
-              <option value="">Ships anywhere</option>
-              {allShipsTo.map((c) => <option key={c} value={c}>Ships to {countryName(c)}</option>)}
-            </select>
-          )}
           <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -167,7 +152,7 @@ export default function IndexPage() {
           </label>
           {hasFilters && (
             <button
-              onClick={() => { setSearch(''); setRegion(''); setCountry(''); setShipsTo(''); }}
+              onClick={() => { setSearch(''); setRegion(''); setCountry(''); }}
               className="px-5 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Clear
