@@ -44,22 +44,67 @@ export default function MyTastings() {
       ) : (
         <div className="space-y-3">
           {tastings.map((t) => (
-            <div key={t.id} className="bg-white border border-amber-100 rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="text-amber-900 font-medium">Coffee #{t.coffee_id}</div>
-                  <div className="text-xs text-amber-500">{t.tasted_on}{t.brew_method ? ` • ${t.brew_method}` : ''}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-amber-700 text-lg">{ratingStars(t.rating) || <span className="text-amber-300 text-sm">no rating</span>}</div>
-                  {!t.is_public && <div className="text-[10px] uppercase tracking-wide text-amber-400 mt-1">private</div>}
-                </div>
-              </div>
-              {t.notes && <div className="text-sm text-amber-800 mt-2 italic">{t.notes}</div>}
-            </div>
+            <TastingRow key={t.id} tasting={t} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function TastingRow({ tasting: t }) {
+  const c = t.coffee;
+  const removed = c?.is_removed;
+  return (
+    <div className={`bg-white border border-amber-100 rounded-lg p-4 shadow-sm flex gap-4 ${removed ? 'opacity-70' : ''}`}>
+      {c?.image_url && (
+        <img
+          src={c.image_url}
+          alt=""
+          loading="lazy"
+          className={`w-20 h-20 rounded-md object-cover flex-shrink-0 border border-amber-100 ${removed ? 'grayscale' : ''}`}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start gap-3">
+          <div className="min-w-0">
+            {c ? (
+              <Link
+                to={`/roasters/${c.roaster.slug}`}
+                className={`text-amber-900 font-medium hover:underline ${removed ? 'line-through' : ''}`}
+              >
+                {c.name}
+              </Link>
+            ) : (
+              <span className="text-amber-900 font-medium">Coffee #{t.coffee_id}</span>
+            )}
+            {c && (
+              <div className="text-xs text-amber-500">
+                <Link to={`/roasters/${c.roaster.slug}`} className="hover:underline">{c.roaster.name}</Link>
+                {' · '}{t.tasted_on}{t.brew_method ? ` · ${t.brew_method}` : ''}
+              </div>
+            )}
+            {!c && (
+              <div className="text-xs text-amber-500">{t.tasted_on}{t.brew_method ? ` · ${t.brew_method}` : ''}</div>
+            )}
+            {removed && (
+              <div className="inline-block mt-1 text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100">
+                no longer sold
+              </div>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-amber-700 text-lg">
+              {ratingStars(t.rating) || <span className="text-amber-300 text-sm">no rating</span>}
+            </div>
+            {!t.is_public && (
+              <div className="text-[10px] uppercase tracking-wide text-amber-400 mt-1">private</div>
+            )}
+          </div>
+        </div>
+        {t.notes && <div className="text-sm text-amber-800 mt-2 italic whitespace-pre-line">{t.notes}</div>}
+      </div>
     </div>
   );
 }
