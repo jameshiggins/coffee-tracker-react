@@ -130,11 +130,7 @@ export default function RoasterShow() {
                         <div className="text-amber-800 text-sm italic mt-2">{coffee.tasting_notes}</div>
                       )}
                       {coffee.description && (
-                        <p className="text-amber-900 text-sm mt-3 leading-relaxed whitespace-pre-line">
-                          {coffee.description.length > 600
-                            ? coffee.description.slice(0, 600).trim() + '…'
-                            : coffee.description}
-                        </p>
+                        <ExpandableDescription text={coffee.description} />
                       )}
                     </div>
                     {coffee.best_price_per_gram && (
@@ -185,6 +181,32 @@ export default function RoasterShow() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Q20: Inline show-more for long roaster-supplied bean descriptions.
+ * Truncates at 600 chars; click "Show more" to expand inline.
+ */
+function ExpandableDescription({ text }) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = text.trim();
+  const cap = 600;
+  const truncated = trimmed.length > cap;
+
+  if (!truncated) {
+    return <p className="text-amber-900 text-sm mt-3 leading-relaxed whitespace-pre-line">{trimmed}</p>;
+  }
+  return (
+    <div className="text-amber-900 text-sm mt-3 leading-relaxed whitespace-pre-line">
+      {expanded ? trimmed : trimmed.slice(0, cap).trim() + '…'}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="ml-1 text-amber-700 hover:underline text-xs"
+      >
+        {expanded ? 'Show less' : 'Show more'}
+      </button>
     </div>
   );
 }
