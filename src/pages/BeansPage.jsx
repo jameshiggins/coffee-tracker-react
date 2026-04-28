@@ -5,6 +5,7 @@ import { flattenBeans, uniqueSorted } from '../utils/beans.js';
 import { countryName } from '../utils/countries.js';
 import { formatBagWeight } from '../utils/units.js';
 import { isCoffeeInStock } from '../utils/stock.js';
+import { findSimilarBeans } from '../utils/similarity.js';
 import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
 import TastingForm from '../components/TastingForm.jsx';
 import { useAuth } from '../auth.jsx';
@@ -59,20 +60,34 @@ export default function BeansPage() {
   }
 
   function findSimilar(bean) {
+    // Q5: overlap-score similarity. Encode the seed bean's id; the rendered
+    // list runs the scoring algorithm against all other beans. Drops the
+    // AND-style filter URL because that returned near-zero results.
     const next = new URLSearchParams();
-    if (bean.country) next.set('country', bean.country);
-    if (bean.process) next.set('process', bean.process);
-    if (bean.roast_level) next.set('roast', bean.roast_level);
-    if (bean.varietal) next.set('varietal', bean.varietal);
+    next.set('similar_to', String(bean.id));
     setParams(next, { replace: false });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  const similarToId = params.get('similar_to');
+  const similarSeed = useMemo(() => {
+    if (!similarToId) return null;
+    return beans.find((b) => String(b.id) === similarToId) ?? null;
+  }, [similarToId, beans]);
 
   function clearAll() {
     setParams(new URLSearchParams(), { replace: true });
   }
 
   const filtered = useMemo(() => {
+    // Find-similar mode bypasses the regular filter pipeline: rank everything
+    // else by overlap score, return the top 12 with their match captions.
+    if (similarSeed) {
+      let list = findSimilarBeans(similarSeed, beans, 12);
+      if (!showOutOfStock) list = list.filter(isCoffeeInStock);
+      return list;
+    }
+
     let list = beans;
     if (filters.search.trim()) {
       const q = filters.search.trim().toLowerCase();
@@ -98,7 +113,7 @@ export default function BeansPage() {
     }
     if (!showOutOfStock) list = list.filter(isCoffeeInStock);
     return list;
-  }, [beans, filters, showOutOfStock]);
+  }, [beans, filters, showOutOfStock, similarSeed]);
 
   const activeChips = [
     filters.country && { key: 'country', label: `origin: ${filters.country}` },
@@ -184,9 +199,24 @@ export default function BeansPage() {
         )}
       </div>
 
+      {similarSeed && (
+        <div className="px-5 py-3 bg-amber-100 border-b border-amber-200 flex items-center justify-between flex-wrap gap-3">
+          <div className="text-sm text-amber-900">
+            Showing beans similar to <strong>{similarSeed.name}</strong>
+            <span className="text-amber-700"> · {similarSeed.roaster.name}</span>
+          </div>
+          <button
+            onClick={() => setParams(new URLSearchParams(), { replace: true })}
+            className="text-sm text-amber-800 hover:text-amber-900 underline"
+          >
+            Clear similarity filter
+          </button>
+        </div>
+      )}
+
       <div className="p-3 bg-amber-50/50 text-sm text-amber-800">
         Showing <strong>{filtered.length}</strong> bean{filtered.length === 1 ? '' : 's'}
-        {beans.length !== filtered.length && <> of {beans.length} total</>}
+        {!similarSeed && beans.length !== filtered.length && <> of {beans.length} total</>}
       </div>
 
       <div className="p-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -243,6 +273,12 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
         {bean.roast_level && <FilterChip onClick={() => onTagClick('roast_level', bean.roast_level)} color="orange">{bean.roast_level}</FilterChip>}
         {bean.varietal && <FilterChip onClick={() => onTagClick('varietal', bean.varietal)} color="stone">{bean.varietal}</FilterChip>}
       </div>
+
+      {bean.matches?.length > 0 && (
+        <div className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          matches: {bean.matches.slice(0, 4).join(' · ')}
+        </div>
+      )}
 
       {bean.tasting_notes && (
         <div className="text-sm text-amber-800 italic mt-3 leading-relaxed">{bean.tasting_notes}</div>
