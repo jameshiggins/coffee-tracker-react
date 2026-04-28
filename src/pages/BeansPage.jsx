@@ -207,7 +207,19 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
   const [showForm, setShowForm] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-amber-100 p-4 flex flex-col">
+    <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden flex flex-col">
+      {bean.image_url && (
+        <div className="aspect-[4/3] bg-amber-50 overflow-hidden border-b border-amber-100">
+          <img
+            src={bean.image_url}
+            alt={bean.name}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
+      )}
+      <div className="p-4 flex flex-col flex-1">
       <div className="flex justify-between items-start gap-2 mb-1">
         <Link to={`/roasters/${bean.roaster.slug}`} className="text-xs text-amber-600 hover:underline uppercase tracking-wide">
           {bean.roaster.name}
@@ -275,6 +287,7 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }
