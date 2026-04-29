@@ -10,9 +10,13 @@ import MyTastings from './pages/MyTastings.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import SignIn from './pages/SignIn.jsx';
 import SignUp from './pages/SignUp.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
+import Verified from './pages/Verified.jsx';
 import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
 import LocationChip from './components/LocationChip.jsx';
+import EmailVerificationBanner from './components/EmailVerificationBanner.jsx';
 
 export default function App() {
   return (
@@ -40,6 +44,8 @@ export default function App() {
             </nav>
           </header>
 
+          <EmailVerificationBanner />
+
           <Routes>
             <Route path="/" element={<IndexPage />} />
             <Route path="/beans" element={<BeansPage />} />
@@ -49,6 +55,9 @@ export default function App() {
             <Route path="/u/:displayName" element={<UserProfile />} />
             <Route path="/sign-in" element={<SignIn />} />
             <Route path="/sign-up" element={<SignUp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verified" element={<Verified />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/me" element={<MyTastings />} />
             <Route path="/me/wishlist" element={<Wishlist />} />

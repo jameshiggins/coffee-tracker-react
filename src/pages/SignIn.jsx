@@ -61,6 +61,9 @@ export default function SignIn() {
       <p className="text-center text-sm text-amber-700 mt-6">
         New here? <Link to="/sign-up" className="underline font-medium">Create an account</Link>
       </p>
+      <p className="text-center text-sm text-amber-600 mt-2">
+        Forgot your password? <Link to="/forgot-password" className="underline">Reset it</Link>
+      </p>
     </div>
   );
 }
