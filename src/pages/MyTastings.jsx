@@ -71,7 +71,7 @@ function TastingRow({ tasting: t }) {
           <div className="min-w-0">
             {c ? (
               <Link
-                to={`/roasters/${c.roaster.slug}`}
+                to={`/c/${c.id}`}
                 className={`text-amber-900 font-medium hover:underline ${removed ? 'line-through' : ''}`}
               >
                 {c.name}

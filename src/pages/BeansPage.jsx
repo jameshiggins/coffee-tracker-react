@@ -258,7 +258,9 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
           <span className="text-xs font-mono text-amber-700">${bean.best_price_per_gram.toFixed(3)}/g</span>
         )}
       </div>
-      <h3 className="text-lg font-bold text-amber-900 leading-tight">{bean.name}</h3>
+      <h3 className="text-lg font-bold leading-tight">
+        <Link to={`/c/${bean.id}`} className="text-amber-900 hover:underline">{bean.name}</Link>
+      </h3>
       {bean.origin && <div className="text-sm text-amber-700 mt-0.5">{bean.origin}</div>}
 
       <div className="flex flex-wrap gap-1.5 mt-2">

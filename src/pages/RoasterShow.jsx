@@ -100,16 +100,18 @@ export default function RoasterShow() {
                 <div className="p-5 border-b border-amber-50">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex-1 min-w-[240px]">
-                      {coffee.product_url ? (
-                        <h3 className="text-lg font-semibold">
+                      <h3 className="text-lg font-semibold">
+                        <Link to={`/c/${coffee.id}`} className="text-amber-900 hover:underline">
+                          {coffee.name}
+                        </Link>
+                        {coffee.product_url && (
                           <a href={coffee.product_url} target="_blank" rel="noopener noreferrer"
-                             className="text-amber-900 hover:underline">
-                            {coffee.name} <span className="text-amber-500 text-xs">↗</span>
+                             className="ml-1 text-amber-500 text-xs hover:text-amber-700"
+                             title="Open product page on roaster's site">
+                            ↗
                           </a>
-                        </h3>
-                      ) : (
-                        <h3 className="text-lg font-semibold text-amber-900">{coffee.name}</h3>
-                      )}
+                        )}
+                      </h3>
                       <div className="text-amber-700 text-sm mt-0.5">{coffee.origin}</div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {coffee.process && (

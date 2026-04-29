@@ -2,6 +2,7 @@ import { NavLink, Routes, Route, Link } from 'react-router-dom';
 import IndexPage from './pages/IndexPage.jsx';
 import BeansPage from './pages/BeansPage.jsx';
 import RoasterShow from './pages/RoasterShow.jsx';
+import CoffeeShow from './pages/CoffeeShow.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
 import MyTastings from './pages/MyTastings.jsx';
 import SignIn from './pages/SignIn.jsx';
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/" element={<IndexPage />} />
             <Route path="/beans" element={<BeansPage />} />
             <Route path="/roasters/:slug" element={<RoasterShow />} />
+            <Route path="/c/:id" element={<CoffeeShow />} />
             <Route path="/sign-in" element={<SignIn />} />
             <Route path="/sign-up" element={<SignUp />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
