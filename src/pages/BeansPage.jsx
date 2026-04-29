@@ -8,6 +8,7 @@ import { isCoffeeInStock } from '../utils/stock.js';
 import { findSimilarBeans } from '../utils/similarity.js';
 import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
 import TastingForm from '../components/TastingForm.jsx';
+import WishlistHeart from '../components/WishlistHeart.jsx';
 import { useAuth } from '../auth.jsx';
 
 const FACETS = [
@@ -254,9 +255,12 @@ function BeanCard({ bean, onFindSimilar, onTagClick }) {
         <Link to={`/roasters/${bean.roaster.slug}`} className="text-xs text-amber-600 hover:underline uppercase tracking-wide">
           {bean.roaster.name}
         </Link>
-        {bean.best_price_per_gram != null && (
-          <span className="text-xs font-mono text-amber-700">${bean.best_price_per_gram.toFixed(3)}/g</span>
-        )}
+        <div className="flex items-center gap-2">
+          {bean.best_price_per_gram != null && (
+            <span className="text-xs font-mono text-amber-700">${bean.best_price_per_gram.toFixed(3)}/g</span>
+          )}
+          <WishlistHeart coffeeId={bean.id} />
+        </div>
       </div>
       <h3 className="text-lg font-bold leading-tight">
         <Link to={`/c/${bean.id}`} className="text-amber-900 hover:underline">{bean.name}</Link>

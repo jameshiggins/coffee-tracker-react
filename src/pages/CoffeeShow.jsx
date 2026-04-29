@@ -6,6 +6,7 @@ import { countryName } from '../utils/countries.js';
 import { formatBagWeight } from '../utils/units.js';
 import { ratingToStars, formatStars } from '../utils/rating.js';
 import TastingForm from '../components/TastingForm.jsx';
+import WishlistHeart from '../components/WishlistHeart.jsx';
 
 const ROAST_COLORS = {
   light: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -71,7 +72,10 @@ export default function CoffeeShow() {
                   className="text-xs uppercase tracking-wide text-amber-600 hover:text-amber-800">
               {coffee.roaster.name} · {coffee.roaster.city}{coffee.roaster.region ? `, ${coffee.roaster.region}` : ''}
             </Link>
-            <h1 className="text-3xl font-bold text-amber-900 leading-tight mt-1">{coffee.name}</h1>
+            <div className="flex items-start justify-between gap-3 mt-1">
+              <h1 className="text-3xl font-bold text-amber-900 leading-tight">{coffee.name}</h1>
+              <WishlistHeart coffeeId={coffee.id} size="lg" />
+            </div>
             {coffee.is_removed && (
               <div className="inline-block mt-2 text-xs uppercase tracking-wide bg-red-50 text-red-700 px-2 py-1 rounded border border-red-100">
                 no longer sold

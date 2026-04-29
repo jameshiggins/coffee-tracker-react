@@ -7,13 +7,16 @@ import TastingPermalink from './pages/TastingPermalink.jsx';
 import UserProfile from './pages/UserProfile.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
 import MyTastings from './pages/MyTastings.jsx';
+import Wishlist from './pages/Wishlist.jsx';
 import SignIn from './pages/SignIn.jsx';
 import SignUp from './pages/SignUp.jsx';
 import { AuthProvider, useAuth } from './auth.jsx';
+import { WishlistProvider } from './hooks/useWishlist.jsx';
 
 export default function App() {
   return (
     <AuthProvider>
+      <WishlistProvider>
       <div className="p-5">
         <div className="max-w-[1400px] mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
           <header
@@ -29,6 +32,7 @@ export default function App() {
               <NavTab to="/" end>By Roaster</NavTab>
               <NavTab to="/beans">By Bean</NavTab>
               <SignedInNavTab to="/me">My Tastings</SignedInNavTab>
+              <SignedInNavTab to="/me/wishlist">Wishlist</SignedInNavTab>
             </nav>
           </header>
 
@@ -43,9 +47,11 @@ export default function App() {
             <Route path="/sign-up" element={<SignUp />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/me" element={<MyTastings />} />
+            <Route path="/me/wishlist" element={<Wishlist />} />
           </Routes>
         </div>
       </div>
+      </WishlistProvider>
     </AuthProvider>
   );
 }
