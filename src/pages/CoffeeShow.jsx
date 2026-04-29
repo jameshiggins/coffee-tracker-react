@@ -220,11 +220,16 @@ export default function CoffeeShow() {
                       <img src={t.user.avatar_url} alt="" className="w-8 h-8 rounded-full border border-amber-100" />
                     )}
                     <div>
-                      <div className="text-sm text-amber-900 font-medium">
-                        {t.user.display_name || `User #${t.user.id}`}
-                      </div>
+                      {t.user.display_name ? (
+                        <Link to={`/u/${t.user.display_name}`} className="text-sm text-amber-900 font-medium hover:underline">
+                          {t.user.display_name}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-amber-900 font-medium">User #{t.user.id}</span>
+                      )}
                       <div className="text-xs text-amber-500">
-                        {t.tasted_on}{t.brew_method ? ` · ${t.brew_method}` : ''}
+                        <Link to={`/t/${t.id}`} className="hover:underline">{t.tasted_on}</Link>
+                        {t.brew_method ? ` · ${t.brew_method}` : ''}
                       </div>
                     </div>
                   </div>

@@ -3,6 +3,8 @@ import IndexPage from './pages/IndexPage.jsx';
 import BeansPage from './pages/BeansPage.jsx';
 import RoasterShow from './pages/RoasterShow.jsx';
 import CoffeeShow from './pages/CoffeeShow.jsx';
+import TastingPermalink from './pages/TastingPermalink.jsx';
+import UserProfile from './pages/UserProfile.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
 import MyTastings from './pages/MyTastings.jsx';
 import SignIn from './pages/SignIn.jsx';
@@ -35,6 +37,8 @@ export default function App() {
             <Route path="/beans" element={<BeansPage />} />
             <Route path="/roasters/:slug" element={<RoasterShow />} />
             <Route path="/c/:id" element={<CoffeeShow />} />
+            <Route path="/t/:id" element={<TastingPermalink />} />
+            <Route path="/u/:displayName" element={<UserProfile />} />
             <Route path="/sign-in" element={<SignIn />} />
             <Route path="/sign-up" element={<SignUp />} />
             <Route path="/auth/callback" element={<AuthCallback />} />

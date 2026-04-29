@@ -11,4 +11,6 @@ export const api = {
   getRoaster: (slug) => getJson(`/roasters/${slug}`),
   getCoffee: (id) => getJson(`/coffees/${id}`),
   getCoffeeTastings: (id) => getJson(`/coffees/${id}/tastings`),
+  getPublicTasting: (id) => getJson(`/tastings/${id}/public`),
+  getUserProfile: (displayName) => getJson(`/users/${encodeURIComponent(displayName)}`),
 };
