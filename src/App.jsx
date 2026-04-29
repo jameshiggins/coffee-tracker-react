@@ -12,6 +12,7 @@ import SignIn from './pages/SignIn.jsx';
 import SignUp from './pages/SignUp.jsx';
 import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
+import LocationChip from './components/LocationChip.jsx';
 
 export default function App() {
   return (
@@ -23,7 +24,10 @@ export default function App() {
             className="text-white p-8 text-center"
             style={{ background: 'linear-gradient(135deg, #6F4E37 0%, #8B4513 100%)' }}
           >
-            <div className="flex justify-end mb-2"><AuthCorner /></div>
+            <div className="flex justify-between items-center mb-2 gap-2">
+              <LocationChip />
+              <AuthCorner />
+            </div>
             <h1 className="text-4xl font-bold drop-shadow">☕ Specialty Coffee Roasters</h1>
             <p className="text-lg opacity-90 mt-2">
               Track specialty coffee prices across Canadian roasters

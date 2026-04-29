@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { countryName } from '../utils/countries.js';
 import { isCoffeeInStock } from '../utils/stock.js';
+import { haversineKm, formatKm } from '../utils/distance.js';
 import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
+import { useUserLocation } from '../hooks/useUserLocation.js';
 
-const SORT_FIELDS = ['name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
+const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
 
 /**
  * Compute the cents-per-gram range from a roaster's coffees, optionally
@@ -26,13 +28,22 @@ function priceRange(roaster, { includeOutOfStock }) {
 export default function IndexPage() {
   const navigate = useNavigate();
   const [showOutOfStock, setShowOutOfStock] = useShowOutOfStock();
+  const { location } = useUserLocation();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('');
   const [country, setCountry] = useState('');
-  const [sort, setSort] = useState('name');
+  // Default sort flips to "distance" when the user has a known location
+  // (Q11). Falls back to "name" when no location is known.
+  const [sort, setSort] = useState(location ? 'distance' : 'name');
   const [dir, setDir] = useState('asc');
+
+  // Promote distance sort when location arrives async (IP lookup) and the
+  // user hasn't manually picked a different sort yet.
+  useEffect(() => {
+    if (location && sort === 'name' && dir === 'asc') setSort('distance');
+  }, [location]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api.listRoasters()
@@ -69,11 +80,20 @@ export default function IndexPage() {
     if (region) list = list.filter((r) => r.region === region);
     if (country) list = list.filter((r) => r.country_code === country);
 
-    // Pre-compute in-stock count + price range so sort comparators stay cheap.
+    // Pre-compute in-stock count, price range, and distance-from-user so
+    // sort comparators stay cheap.
     list = list
       .map((r) => {
         const inStockBeans = (r.coffees ?? []).filter(isCoffeeInStock);
-        return { ...r, _inStockCount: inStockBeans.length, _range: priceRange(r, { includeOutOfStock: showOutOfStock }) };
+        const distanceKm = (location && r.latitude != null && r.longitude != null)
+          ? haversineKm(location, { lat: r.latitude, lng: r.longitude })
+          : null;
+        return {
+          ...r,
+          _inStockCount: inStockBeans.length,
+          _range: priceRange(r, { includeOutOfStock: showOutOfStock }),
+          _distanceKm: distanceKm,
+        };
       })
       // Hide roasters with zero buyable coffees unless the user opts in
       // (Q22: empty roasters do not display by default; Q3: toggle controls).
@@ -82,6 +102,12 @@ export default function IndexPage() {
     const mult = dir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
       switch (sort) {
+        case 'distance': {
+          // Roasters without coordinates fall to the bottom regardless of dir.
+          const ax = a._distanceKm ?? Infinity;
+          const bx = b._distanceKm ?? Infinity;
+          return (ax - bx) * mult;
+        }
         case 'country': return countryName(a.country_code).localeCompare(countryName(b.country_code)) * mult;
         case 'region': return (a.region || '').localeCompare(b.region || '') * mult;
         case 'city': return (a.city || '').localeCompare(b.city || '') * mult;
@@ -95,7 +121,7 @@ export default function IndexPage() {
       }
     });
     return list;
-  }, [roasters, search, region, country, sort, dir, showOutOfStock]);
+  }, [roasters, search, region, country, sort, dir, showOutOfStock, location]);
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
@@ -173,6 +199,7 @@ export default function IndexPage() {
               <tr>
                 {[
                   ['name', 'Roaster'],
+                  ...(location ? [['distance', 'Distance']] : []),
                   ['country', 'Country'],
                   ['region', 'State / Province'],
                   ['city', 'City'],
@@ -209,6 +236,11 @@ export default function IndexPage() {
                         {r.name}
                       </Link>
                     </td>
+                    {location && (
+                      <td className="px-4 py-3 text-amber-700 whitespace-nowrap">
+                        {r._distanceKm != null ? formatKm(r._distanceKm) : <span className="text-gray-300">—</span>}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-amber-900">{countryName(r.country_code)}</td>
                     <td className="px-4 py-3 text-amber-900">{r.region || <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3 text-amber-900">{r.city || <span className="text-gray-300">—</span>}</td>
