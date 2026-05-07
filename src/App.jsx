@@ -1,5 +1,6 @@
 import { NavLink, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
-import IndexPage from './pages/IndexPage.jsx';
+import MapPage from './pages/MapPage.jsx';
+import RoastersPage from './pages/RoastersPage.jsx';
 import BeansPage from './pages/BeansPage.jsx';
 import TastingPermalink from './pages/TastingPermalink.jsx';
 import UserProfile from './pages/UserProfile.jsx';
@@ -17,6 +18,7 @@ import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
 import LocationChip from './components/LocationChip.jsx';
 import EmailVerificationBanner from './components/EmailVerificationBanner.jsx';
+import Logo from './components/Logo.jsx';
 
 export default function App() {
   return (
@@ -61,22 +63,25 @@ export default function App() {
       <div className="p-5">
         <div className="max-w-[1400px] mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
           <header
-            className="text-white p-8 text-center"
+            className="text-white p-6 md:p-8"
             style={{ background: 'linear-gradient(135deg, #6F4E37 0%, #8B4513 100%)' }}
           >
-            <div className="flex justify-between items-center mb-2 gap-2">
+            <div className="flex justify-between items-center mb-4 gap-2">
               <LocationChip />
               <AuthCorner />
             </div>
-            <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
-              <h1 className="text-4xl font-bold drop-shadow">☕ Canadian Specialty Coffee Roasters</h1>
-            </Link>
-            <p className="text-lg opacity-90 mt-2">
-              Track specialty coffee prices across Canadian roasters
-            </p>
-            <nav className="mt-4 flex gap-2 justify-center flex-wrap">
-              <NavTab to="/" end>By Roaster</NavTab>
-              <NavTab to="/beans">By Bean</NavTab>
+            <div className="text-center">
+              <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+                <Logo dark size="lg" />
+              </Link>
+              <p className="text-sm md:text-base opacity-80 mt-2">
+                The map of Canadian specialty coffee.
+              </p>
+            </div>
+            <nav className="mt-5 flex gap-2 justify-center flex-wrap">
+              <NavTab to="/" end>Map</NavTab>
+              <NavTab to="/roasters">Roasters</NavTab>
+              <NavTab to="/beans">Beans</NavTab>
               <SignedInNavTab to="/me">My Tastings</SignedInNavTab>
               <SignedInNavTab to="/me/wishlist">Wishlist</SignedInNavTab>
             </nav>
@@ -86,7 +91,8 @@ export default function App() {
 
           <main id="main">
           <Routes>
-            <Route path="/" element={<IndexPage />} />
+            <Route path="/" element={<MapPage />} />
+            <Route path="/roasters" element={<RoastersPage />} />
             <Route path="/beans" element={<BeansPage />} />
             {/* Old detail/roaster pages are gone — both redirect into the unified
                 /beans card UI with appropriate query state. */}
@@ -108,7 +114,7 @@ export default function App() {
           </main>
 
           <footer className="border-t border-amber-100 mt-6 px-6 py-4 text-xs text-amber-600 flex justify-between items-center flex-wrap gap-2">
-            <span>© 2026 Specialty Coffee Roasters</span>
+            <span>© 2026 Roastmap</span>
             <span className="flex gap-4">
               <Link to="/privacy" className="hover:text-amber-800 hover:underline">Privacy</Link>
               <Link to="/terms" className="hover:text-amber-800 hover:underline">Terms</Link>
