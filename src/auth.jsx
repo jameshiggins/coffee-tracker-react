@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
 const TOKEN_KEY = 'coffee_tracker_token';
-const API_BASE = 'http://localhost:8000';
+// Vite injects this at build time; localhost fallback for dev.
+const API_BASE = import.meta.env?.VITE_API_BASE ?? 'http://localhost:8000';
 
 const AuthContext = createContext(null);
 

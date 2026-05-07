@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { countryName } from '../utils/countries.js';
 import { isCoffeeInStock } from '../utils/stock.js';
 import { haversineKm, formatKm } from '../utils/distance.js';
-import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
+import { useShowOutOfStock } from '../hooks/useShowHistorical.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
 
 const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
@@ -155,11 +155,13 @@ export default function IndexPage() {
           />
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <select value={country} onChange={(e) => setCountry(e.target.value)}
-                  className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
-            <option value="">All countries</option>
-            {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
-          </select>
+          {allCountries.length > 1 && (
+            <select value={country} onChange={(e) => setCountry(e.target.value)}
+                    className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
+              <option value="">All countries</option>
+              {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
+            </select>
+          )}
           {allRegions.length > 0 && (
             <select value={region} onChange={(e) => setRegion(e.target.value)}
                     className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
@@ -200,7 +202,7 @@ export default function IndexPage() {
                 {[
                   ['name', 'Roaster'],
                   ...(location ? [['distance', 'Distance']] : []),
-                  ['country', 'Country'],
+                  ...(allCountries.length > 1 ? [['country', 'Country']] : []),
                   ['region', 'State / Province'],
                   ['city', 'City'],
                   ['coffees', 'Bean selection'],
@@ -227,21 +229,34 @@ export default function IndexPage() {
                   : 'text-red-600';
                 return (
                   <tr key={r.id}
-                      onClick={() => navigate(`/roasters/${r.slug}`)}
+                      onClick={() => navigate(`/beans?roaster=${r.slug}`)}
                       className="hover:bg-amber-50 border-b border-gray-100 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
-                      <Link to={`/roasters/${r.slug}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-bold text-amber-900 hover:underline">
-                        {r.name}
-                      </Link>
+                      <div className="flex items-center gap-2.5">
+                        {r.favicon_url && (
+                          <img
+                            src={r.favicon_url}
+                            alt=""
+                            loading="lazy"
+                            className="w-6 h-6 rounded-sm flex-shrink-0 object-contain bg-amber-50/50 border border-amber-100/60"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        )}
+                        <Link to={`/beans?roaster=${r.slug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-bold text-amber-900 hover:underline">
+                          {r.name}
+                        </Link>
+                      </div>
                     </td>
                     {location && (
                       <td className="px-4 py-3 text-amber-700 whitespace-nowrap">
                         {r._distanceKm != null ? formatKm(r._distanceKm) : <span className="text-gray-300">—</span>}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-amber-900">{countryName(r.country_code)}</td>
+                    {allCountries.length > 1 && (
+                      <td className="px-4 py-3 text-amber-900">{countryName(r.country_code)}</td>
+                    )}
                     <td className="px-4 py-3 text-amber-900">{r.region || <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3 text-amber-900">{r.city || <span className="text-gray-300">—</span>}</td>
                     <td className="px-4 py-3 text-amber-900">

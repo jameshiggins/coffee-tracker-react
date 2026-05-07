@@ -1,353 +1,640 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { flattenBeans, uniqueSorted } from '../utils/beans.js';
 import { countryName } from '../utils/countries.js';
-import { formatBagWeight } from '../utils/units.js';
 import { isCoffeeInStock } from '../utils/stock.js';
 import { findSimilarBeans } from '../utils/similarity.js';
-import { useShowOutOfStock } from '../hooks/useShowOutOfStock.js';
-import TastingForm from '../components/TastingForm.jsx';
-import WishlistHeart from '../components/WishlistHeart.jsx';
-import { useAuth } from '../auth.jsx';
+import { useShowHistorical } from '../hooks/useShowHistorical.js';
+import { useUserLocation } from '../hooks/useUserLocation.js';
+import { haversineKm } from '../utils/distance.js';
+import BeanCard from '../components/BeanCard.jsx';
+import FilterDropdown from '../components/FilterDropdown.jsx';
+import { splitTastingNotes } from '../utils/flavorColor.js';
+import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList, ELEVATION_TIERS, elevationTier } from '../utils/beanFilters.js';
 
-const FACETS = [
-  { key: 'country', label: 'Bean origin' },
-  { key: 'process', label: 'Process' },
-  { key: 'roast_level', label: 'Roast' },
-  { key: 'varietal', label: 'Varietal' },
-  { key: 'roaster_country', label: 'Roaster country', renderOption: (v) => countryName(v) },
-  { key: 'roaster_region', label: 'Roaster state/province' },
-];
-
+/**
+ * Unified bean directory. The single canonical browse surface.
+ *
+ *  - Flat grid (3 cols desktop / 2 tablet / 1 mobile) of <BeanCard>s
+ *  - URL state for filters (?q, ?country, ?process, ?roast, ?varietal,
+ *    ?blend, ?note, ?roaster, ?bean for deep-link-to-card)
+ *  - Active-filters chip row at top, click x to remove individual filters
+ *  - Only ONE card expanded at a time (c3); expanded card spans the full
+ *    grid row (L4)
+ *  - Click any chip on any card → adds filter to URL → list reflows
+ *  - Roaster panel appears at the top when ?roaster=slug is active
+ *
+ * /c/:id and /roasters/:slug both redirect here:
+ *   /c/123       → /beans?bean=123  (auto-expands card 123)
+ *   /roasters/x  → /beans?roaster=x  (filters + shows roaster panel)
+ */
 export default function BeansPage() {
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [params, setParams] = useSearchParams();
-  const [showOutOfStock, setShowOutOfStock] = useShowOutOfStock();
+  const [showHistorical, setShowHistorical] = useShowHistorical();
+  const { location, requestPreciseLocation } = useUserLocation();
+  const [expandedId, setExpandedId] = useState(null);
+  const [gpsRequested, setGpsRequested] = useState(false);
 
   useEffect(() => {
     api.listRoasters().then((d) => setRoasters(d.roasters)).catch((e) => setError(e.message));
   }, []);
 
+  // ?bean=<id> auto-expands a specific card on initial load (used by the
+  // /c/:id redirect so old permalinks continue working).
+  useEffect(() => {
+    const beanId = params.get('bean');
+    if (beanId) setExpandedId(Number(beanId));
+  }, []); // intentional: only on first mount
+
+  // Default sort is "nearest roaster", so on first load attempt to grab
+  // a precise GPS reading. If the user has a saved location already
+  // (manual pick or prior IP lookup), we use that and skip the prompt.
+  // The browser shows its own permission UI; if denied or unavailable,
+  // we silently fall through to the IP location (or no location at all).
+  useEffect(() => {
+    if (location || gpsRequested) return;
+    setGpsRequested(true);
+    requestPreciseLocation().catch(() => {});
+  }, [location, gpsRequested, requestPreciseLocation]);
+
   const beans = useMemo(() => roasters ? flattenBeans(roasters) : [], [roasters]);
 
-  const facetOptions = useMemo(() => {
-    const opts = {};
-    for (const { key } of FACETS) opts[key] = uniqueSorted(beans.map((b) => b[key]));
-    opts.tasting_token = uniqueSorted(beans.flatMap((b) => b.tokens));
-    return opts;
-  }, [beans]);
+  // Filters live in the URL so they're shareable + back-button-friendly.
+  // Multi-select fields (country/process/roast/varietal/note) come back
+  // as arrays parsed from a comma-separated query value. Single-select
+  // fields (blend, roaster, q) stay strings.
+  const filters = useMemo(() => ({
+    q: params.get('q') ?? '',
+    country: parseList(params.get('country')),
+    process: parseList(params.get('process')),
+    roast: parseList(params.get('roast')),
+    varietal: parseList(params.get('varietal')),
+    note: parseList(params.get('note')),
+    elevation: parseList(params.get('elevation')),
+    blend: params.get('blend') ?? '',         // single: '', 'single-origin', 'blend'
+    roaster: params.get('roaster') ?? '',     // single: roaster slug
+  }), [params]);
 
-  const filters = {
-    search: params.get('q') ?? '',
-    country: params.get('country') ?? '',
-    process: params.get('process') ?? '',
-    roast_level: params.get('roast') ?? '',
-    varietal: params.get('varietal') ?? '',
-    roaster_country: params.get('rcountry') ?? '',
-    roaster_region: params.get('rregion') ?? '',
-    note: params.get('note') ?? '',
-    blend: params.get('blend') ?? '', // '' = any, 'single' = single-origin only, 'blend' = blends only
-  };
+  // Default sort: nearest roaster first when we know where the user is,
+  // cheapest ¢/g when we don't (since "nearest" doesn't make sense without
+  // a reference point).
+  const sort = params.get('sort') || (location ? 'distance-asc' : 'cpg-asc');
 
-  const PARAM_MAP = { roast_level: 'roast', search: 'q', roaster_country: 'rcountry', roaster_region: 'rregion' };
+  // ---- filter pipeline ----
+  // Multi-select fields are OR-within-field, AND-across-fields. So
+  // country=Ethiopia,Colombia AND process=natural means
+  // "Ethiopia OR Colombia, that is natural".
+  const visibleBeans = useMemo(() => {
+    let list = beans;
+
+    // Default: show only currently-buyable. Historical = soft-removed
+    // ("no longer sold") OR currently sold-out across all variants.
+    if (!showHistorical) list = list.filter((b) => !b.is_removed && isCoffeeInStock(b));
+
+
+    if (filters.roaster) {
+      list = list.filter((b) => b.roaster?.slug === filters.roaster);
+    }
+    if (filters.country.length) {
+      list = list.filter((b) => filters.country.includes(b.country));
+    }
+    if (filters.process.length) {
+      list = list.filter((b) => filters.process.includes(normalize(b.process)));
+    }
+    if (filters.roast.length) {
+      list = list.filter((b) => filters.roast.includes(normalize(b.roast_level)));
+    }
+    if (filters.varietal.length) {
+      list = list.filter((b) => filters.varietal.includes(normalize(b.varietal)));
+    }
+    if (filters.elevation.length) {
+      list = list.filter((b) => {
+        const tier = elevationTier(b.elevation_meters);
+        return tier !== null && filters.elevation.includes(tier);
+      });
+    }
+    if (filters.blend === 'single-origin') list = list.filter((b) => !b.is_blend);
+    if (filters.blend === 'blend')         list = list.filter((b) =>  b.is_blend);
+
+    if (filters.note.length) {
+      // AND across selected notes (substring match within each). Selecting
+      // chocolate + floral means "must have both chocolate AND floral" —
+      // this is a precision tool, not a recall tool. Substring is fine
+      // because "chocolate" rightly matches "dark chocolate" too.
+      const needles = filters.note.map((n) => n.toLowerCase());
+      list = list.filter((b) => {
+        const hay = (b.tasting_notes || '').toLowerCase();
+        return needles.every((n) => hay.includes(n));
+      });
+    }
+
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
+      list = list.filter((b) =>
+        (b.name || '').toLowerCase().includes(q) ||
+        (b.roaster?.name || '').toLowerCase().includes(q) ||
+        (b.origin || '').toLowerCase().includes(q) ||
+        (b.varietal || '').toLowerCase().includes(q) ||
+        (b.tasting_notes || '').toLowerCase().includes(q)
+      );
+    }
+
+    const similarSeedId = params.get('similar_to');
+    if (similarSeedId) {
+      const seed = beans.find((b) => String(b.id) === similarSeedId);
+      if (seed) list = findSimilarBeans(seed, list);
+    }
+
+    // Apply sort. Distance-aware when we have a user location; otherwise
+    // falls back to cheapest ¢/g (the directory's secondary value prop).
+    list = [...list].sort(buildSortFn(sort, location));
+
+    return list;
+  }, [beans, filters, showHistorical, params, sort, location]);
+
+  const inStockTotal = useMemo(
+    () => beans.filter((b) => !b.is_removed && isCoffeeInStock(b)).length,
+    [beans]
+  );
+
+  // The roaster the user has filtered to (for the panel at the top)
+  const filteredRoaster = useMemo(() => {
+    if (!filters.roaster || !roasters) return null;
+    return roasters.find((r) => r.slug === filters.roaster) ?? null;
+  }, [filters.roaster, roasters]);
+
+  // Filter-bar option lists. Built from the in-stock universe so dropdowns
+  // never offer values that have no matching beans. Counts shown in the
+  // dropdown so users can see how big a slice they'd get.
+  const inStockUniverse = useMemo(
+    () => beans.filter((b) => !b.is_removed && (showHistorical || isCoffeeInStock(b))),
+    [beans, showHistorical]
+  );
+  const originOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      if (b.country) counts[b.country] = (counts[b.country] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([v, c]) => ({ value: v, label: countryName(v) || v, count: c }))
+      .sort((a, b) => b.count - a.count);
+  }, [inStockUniverse]);
+  const noteOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      for (const n of splitTastingNotes(b.tasting_notes)) {
+        const key = n.toLowerCase();
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .filter(([, c]) => c >= 2)  // hide one-offs to keep the list usable
+      .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 60);
+  }, [inStockUniverse]);
+  const processOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      const p = normalize(b.process);
+      if (p) counts[p] = (counts[p] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
+      .sort((a, b) => b.count - a.count);
+  }, [inStockUniverse]);
+  const roastOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      const r = normalize(b.roast_level);
+      if (r) counts[r] = (counts[r] || 0) + 1;
+    }
+    // Force the natural light → medium → dark order rather than count order.
+    const order = ['light', 'medium', 'medium-dark', 'dark', 'omni'];
+    return order
+      .filter((r) => counts[r])
+      .map((r) => ({ value: r, label: titleCase(r), count: counts[r] }));
+  }, [inStockUniverse]);
+  const varietalOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      const v = normalize(b.varietal);
+      if (v) counts[v] = (counts[v] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .filter(([, c]) => c >= 2)
+      .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 60);
+  }, [inStockUniverse]);
+  // Elevation tiers — count how many in-stock beans fall in each tier so
+  // the user sees real availability before picking. Tiers with zero beans
+  // are still listed (useful as "no high-altitude in stock right now" UX).
+  const elevationOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      const t = elevationTier(b.elevation_meters);
+      if (t) counts[t] = (counts[t] || 0) + 1;
+    }
+    return ELEVATION_TIERS.map((tier) => ({
+      value: tier.value,
+      label: tier.label,
+      count: counts[tier.value] || 0,
+    }));
+  }, [inStockUniverse]);
 
   function setFilter(key, value) {
-    const queryKey = PARAM_MAP[key] ?? key;
     const next = new URLSearchParams(params);
-    if (value) next.set(queryKey, value); else next.delete(queryKey);
+    // Accept either a string or an array for the value. Empty values
+    // delete the key entirely so the URL stays tidy.
+    if (Array.isArray(value)) {
+      if (value.length === 0) next.delete(key);
+      else next.set(key, value.join(','));
+    } else {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    next.delete('bean'); // changing filters cancels deep-link expansion
+    setParams(next, { replace: true });
+    setExpandedId(null);
+  }
+
+  function clearFilter(key, value = null) {
+    const next = new URLSearchParams(params);
+    if (value !== null && MULTI_KEYS.has(key)) {
+      // Multi-field: remove just one value, keep others.
+      const remaining = parseList(next.get(key)).filter((v) => v !== value);
+      if (remaining.length === 0) next.delete(key);
+      else next.set(key, remaining.join(','));
+    } else {
+      next.delete(key);
+    }
     setParams(next, { replace: true });
   }
 
-  function findSimilar(bean) {
-    // Q5: overlap-score similarity. Encode the seed bean's id; the rendered
-    // list runs the scoring algorithm against all other beans. Drops the
-    // AND-style filter URL because that returned near-zero results.
-    const next = new URLSearchParams();
-    next.set('similar_to', String(bean.id));
-    setParams(next, { replace: false });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  const similarToId = params.get('similar_to');
-  const similarSeed = useMemo(() => {
-    if (!similarToId) return null;
-    return beans.find((b) => String(b.id) === similarToId) ?? null;
-  }, [similarToId, beans]);
-
   function clearAll() {
     setParams(new URLSearchParams(), { replace: true });
+    setExpandedId(null);
   }
 
-  const filtered = useMemo(() => {
-    // Find-similar mode bypasses the regular filter pipeline: rank everything
-    // else by overlap score, return the top 12 with their match captions.
-    if (similarSeed) {
-      let list = findSimilarBeans(similarSeed, beans, 12);
-      if (!showOutOfStock) list = list.filter(isCoffeeInStock);
-      return list;
-    }
+  // BeanCard chip-click bridge. Multi-fields TOGGLE the value (add if
+  // missing, remove if already there); single-fields REPLACE.
+  function onChipClick(filterKey, value) {
+    const targetKey = filterKey === 'origin' ? 'country'
+      : filterKey === 'roast_level' ? 'roast'
+      : filterKey;
 
-    let list = beans;
-    if (filters.search.trim()) {
-      const q = filters.search.trim().toLowerCase();
-      list = list.filter((b) =>
-        b.name.toLowerCase().includes(q) ||
-        (b.origin || '').toLowerCase().includes(q) ||
-        (b.varietal || '').toLowerCase().includes(q) ||
-        (b.tasting_notes || '').toLowerCase().includes(q) ||
-        b.roaster.name.toLowerCase().includes(q)
-      );
+    if (MULTI_KEYS.has(targetKey)) {
+      const current = filters[targetKey];
+      const lower = targetKey === 'note' ? String(value).toLowerCase() : normalize(value);
+      const needle = targetKey === 'note' ? lower : lower;
+      const hasIt = current.includes(needle);
+      const next = hasIt ? current.filter((v) => v !== needle) : [...current, needle];
+      setFilter(targetKey, next);
+    } else {
+      const current = filters[targetKey];
+      setFilter(targetKey, current === value ? '' : value);
     }
-    if (filters.country) list = list.filter((b) => b.country === filters.country);
-    if (filters.process) list = list.filter((b) => b.process === filters.process);
-    if (filters.roast_level) list = list.filter((b) => b.roast_level === filters.roast_level);
-    if (filters.varietal) list = list.filter((b) => b.varietal === filters.varietal);
-    if (filters.roaster_country) list = list.filter((b) => b.roaster_country === filters.roaster_country);
-    if (filters.roaster_region) list = list.filter((b) => b.roaster_region === filters.roaster_region);
-    if (filters.blend === 'single') list = list.filter((b) => !b.is_blend);
-    if (filters.blend === 'blend') list = list.filter((b) => b.is_blend);
-    if (filters.note) {
-      const note = filters.note.toLowerCase();
-      list = list.filter((b) => b.tokens.some((t) => t.includes(note)));
-    }
-    if (!showOutOfStock) list = list.filter(isCoffeeInStock);
-    return list;
-  }, [beans, filters, showOutOfStock, similarSeed]);
-
-  const activeChips = [
-    filters.country && { key: 'country', label: `origin: ${filters.country}` },
-    filters.process && { key: 'process', label: `process: ${filters.process}` },
-    filters.roast_level && { key: 'roast_level', label: `roast: ${filters.roast_level}` },
-    filters.varietal && { key: 'varietal', label: filters.varietal },
-    filters.roaster_country && { key: 'roaster_country', label: `roaster country: ${countryName(filters.roaster_country)}` },
-    filters.roaster_region && { key: 'roaster_region', label: `roaster state/province: ${filters.roaster_region}` },
-    filters.note && { key: 'note', label: `notes: ${filters.note}` },
-    filters.blend && { key: 'blend', label: filters.blend === 'single' ? 'single-origin only' : 'blends only' },
-  ].filter(Boolean);
+  }
 
   if (error) {
-    return <div className="p-10 text-center text-red-700">Failed: {error}</div>;
+    return (
+      <div className="p-10 text-center">
+        <h2 className="text-2xl font-bold text-red-700">Failed to load</h2>
+        <p className="text-amber-700 mt-2">{error}</p>
+      </div>
+    );
   }
   if (!roasters) return <div className="p-10 text-center text-amber-800">Loading…</div>;
 
+  // Flatten filters to one chip per active value (multi-select fields
+  // produce N chips, one per selected value).
+  const activeFilterChips = [];
+  for (const [key, value] of Object.entries(filters)) {
+    if (MULTI_KEYS.has(key) && Array.isArray(value) && value.length) {
+      for (const v of value) activeFilterChips.push({ key, value: v });
+    } else if (!MULTI_KEYS.has(key) && value) {
+      activeFilterChips.push({ key, value });
+    }
+  }
+
   return (
-    <div>
-      <div className="p-5 bg-gray-50 border-b border-gray-200">
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => setFilter('search', e.target.value)}
-          placeholder="Search beans, origins, varietals, tasting notes..."
-          className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-amber-800 mb-3"
+    <div className="p-4 md:p-6">
+      {/* ---------- Roaster panel (when ?roaster filter active) ---------- */}
+      {filteredRoaster && <RoasterPanel roaster={filteredRoaster} onClear={() => clearFilter('roaster')} />}
+
+      {/* ---------- Filter bar — Type → Roast → Region → Process → Varietal → Note → Sort ---------- */}
+      <div className="bg-white rounded-xl border border-amber-100 p-3 mb-4 flex items-center gap-2 flex-wrap">
+        <FilterDropdown
+          label="Type"
+          value={filters.blend}
+          options={[
+            { value: 'single-origin', label: 'Single Origin' },
+            { value: 'blend', label: 'Blend' },
+          ]}
+          onPick={(v) => setFilter('blend', v)}
         />
-
-        <div className="flex flex-wrap gap-2 items-center">
-          {FACETS.map(({ key, label, renderOption }) => (
-            <select
-              key={key}
-              value={filters[key]}
-              onChange={(e) => setFilter(key, e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-amber-800"
-            >
-              <option value="">{label}: any</option>
-              {facetOptions[key]?.map((opt) => (
-                <option key={opt} value={opt}>{renderOption ? renderOption(opt) : opt}</option>
-              ))}
-            </select>
-          ))}
-          <select
-            value={filters.blend}
-            onChange={(e) => setFilter('blend', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-amber-800"
-          >
-            <option value="">Single-origin & blends</option>
-            <option value="single">Single-origin only</option>
-            <option value="blend">Blends only</option>
-          </select>
+        <FilterDropdown
+          label="Roast"
+          multi
+          value={filters.roast}
+          options={roastOptions}
+          onPick={(v) => setFilter('roast', v)}
+        />
+        <FilterDropdown
+          label="Region"
+          multi
+          value={filters.country}
+          options={originOptions}
+          onPick={(v) => setFilter('country', v)}
+        />
+        <FilterDropdown
+          label="Process"
+          multi
+          value={filters.process}
+          options={processOptions}
+          onPick={(v) => setFilter('process', v)}
+        />
+        <FilterDropdown
+          label="Varietal"
+          multi
+          value={filters.varietal}
+          options={varietalOptions}
+          onPick={(v) => setFilter('varietal', v)}
+        />
+        <FilterDropdown
+          label="Elevation"
+          multi
+          value={filters.elevation}
+          options={elevationOptions}
+          onPick={(v) => setFilter('elevation', v)}
+        />
+        <FilterDropdown
+          label="Tasting note"
+          multi
+          value={filters.note}
+          options={noteOptions}
+          onPick={(v) => setFilter('note', v)}
+        />
+        <FilterDropdown
+          label="Sort"
+          value={sort}
+          options={SORT_OPTIONS}
+          onPick={(v) => {
+            const next = v || 'cpg-asc';
+            setFilter('sort', next);
+            // Picking "Nearest" without a known location triggers the
+            // browser's GPS prompt. We try once per session — if denied,
+            // the sort silently falls through to fixed-position ties.
+            if (next === 'distance-asc' && !location && !gpsRequested) {
+              setGpsRequested(true);
+              requestPreciseLocation().catch(() => {});
+            }
+          }}
+        />
+        <label htmlFor="beans-search" className="sr-only">
+          Search beans, roasters, origins, and tasting notes
+        </label>
+        <input
+          id="beans-search"
+          type="search"
+          value={filters.q}
+          onChange={(e) => setFilter('q', e.target.value)}
+          placeholder="Search beans, roasters…"
+          aria-label="Search beans, roasters, origins, and tasting notes"
+          className="flex-1 min-w-[200px] px-3 py-2 border-2 border-amber-100 rounded-lg text-sm focus:outline-none focus:border-amber-500"
+        />
+        <label className="text-sm text-amber-800 cursor-pointer select-none flex items-center gap-1.5"
+               title="Include sold-out beans and ones the roaster has dropped from their catalog">
           <input
-            type="text"
-            value={filters.note}
-            onChange={(e) => setFilter('note', e.target.value)}
-            placeholder="tasting note (e.g. blueberry)"
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-amber-800"
+            type="checkbox"
+            checked={showHistorical}
+            onChange={(e) => setShowHistorical(e.target.checked)}
+            className="accent-amber-700"
           />
-          <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none ml-2">
-            <input
-              type="checkbox"
-              checked={showOutOfStock}
-              onChange={(e) => setShowOutOfStock(e.target.checked)}
-              className="accent-amber-700"
-            />
-            Show sold out
-          </label>
-        </div>
-
-        {activeChips.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3 items-center">
-            {activeChips.map((chip) => (
-              <button
-                key={chip.key}
-                onClick={() => setFilter(chip.key, '')}
-                className="bg-amber-800 hover:bg-amber-900 text-white text-xs px-3 py-1 rounded-full transition-colors"
-              >
-                {chip.label} <span className="ml-1">×</span>
-              </button>
-            ))}
-            <button onClick={clearAll} className="text-amber-800 hover:underline text-xs ml-2">Clear all</button>
-          </div>
-        )}
+          Show historical
+        </label>
       </div>
 
-      {similarSeed && (
-        <div className="px-5 py-3 bg-amber-100 border-b border-amber-200 flex items-center justify-between flex-wrap gap-3">
-          <div className="text-sm text-amber-900">
-            Showing beans similar to <strong>{similarSeed.name}</strong>
-            <span className="text-amber-700"> · {similarSeed.roaster.name}</span>
-          </div>
-          <button
-            onClick={() => setParams(new URLSearchParams(), { replace: true })}
-            className="text-sm text-amber-800 hover:text-amber-900 underline"
-          >
-            Clear similarity filter
+      {/* ---------- Active filters chip row (u3) ---------- */}
+      {activeFilterChips.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center mb-4 text-sm">
+          <span className="text-amber-600 font-medium">Filtering by:</span>
+          {activeFilterChips.map(({ key, value }, i) => (
+            <button
+              key={`${key}-${value}-${i}`}
+              onClick={() => clearFilter(key, value)}
+              className="inline-flex items-center gap-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1 rounded-full text-xs"
+              title="Click to remove"
+            >
+              {BOOLEAN_KEYS.has(key) ? (
+                <span className="font-medium">{LABELS[key]}</span>
+              ) : (
+                <>
+                  <span className="text-amber-600">{LABELS[key] || key}:</span>
+                  <span className="font-medium">{labelForValue(key, value, roasters)}</span>
+                </>
+              )}
+              <span className="ml-1 text-amber-600">✕</span>
+            </button>
+          ))}
+          {params.get('similar_to') && (
+            <button
+              onClick={() => { const n = new URLSearchParams(params); n.delete('similar_to'); setParams(n, { replace: true }); }}
+              className="inline-flex items-center gap-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 px-3 py-1 rounded-full text-xs"
+            >
+              <span className="text-purple-600">Similar to:</span>
+              <span className="font-medium">
+                {beans.find((b) => String(b.id) === params.get('similar_to'))?.name || '?'}
+              </span>
+              <span className="ml-1 text-purple-600">✕</span>
+            </button>
+          )}
+          <button onClick={clearAll} className="text-amber-700 hover:underline text-xs ml-2">
+            Clear all
           </button>
         </div>
       )}
 
-      <div className="p-3 bg-amber-50/50 text-sm text-amber-800">
-        Showing <strong>{filtered.length}</strong> bean{filtered.length === 1 ? '' : 's'}
-        {!similarSeed && beans.length !== filtered.length && <> of {beans.length} total</>}
+      {/* ---------- Result count ---------- */}
+      <div className="text-sm text-amber-700 mb-3">
+        Showing <strong>{visibleBeans.length}</strong> of {inStockTotal} in-stock beans
       </div>
 
-      <div className="p-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-10 text-amber-700">
-            No beans match those filters.
-            <button onClick={clearAll} className="ml-2 underline">Reset</button>
-          </div>
-        ) : filtered.map((b) => <BeanCard key={b.id} bean={b} onFindSimilar={findSimilar} onTagClick={setFilter} />)}
-      </div>
+      {/* ---------- Card grid (L4: grid → row-takeover on expand) ---------- */}
+      {visibleBeans.length === 0 ? (
+        <div className="bg-white rounded-xl border border-amber-100 p-10 text-center text-amber-500">
+          Nothing matches. Try removing a filter.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {visibleBeans.map((bean) => (
+            <BeanCard
+              key={bean.id}
+              coffee={bean}
+              isExpanded={expandedId === bean.id}
+              onExpandToggle={() => setExpandedId(expandedId === bean.id ? null : bean.id)}
+              onChipClick={onChipClick}
+              showRoasterChip={!filters.roaster}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function BeanCard({ bean, onFindSimilar, onTagClick }) {
-  const def = bean.default_variant;
-  const { user } = useAuth();
-  const [showForm, setShowForm] = useState(false);
-  const [savedMsg, setSavedMsg] = useState(false);
+/* ----------------- helpers ----------------- */
+
+// LABELS, MULTI_KEYS, BOOLEAN_KEYS imported from utils/beanFilters.js —
+// the single source of truth, guarded by beanFilters.test.js invariants.
+
+// Sort options. "Nearest" is the default when the user has shared a location
+// (it triggers a GPS prompt the first time). Falls back to cheapest ¢/g.
+const SORT_OPTIONS = [
+  { value: 'distance-asc', label: 'Nearest roaster' },
+  { value: 'cpg-asc', label: 'Cheapest ¢/g' },
+  { value: 'cpg-desc', label: 'Most expensive ¢/g' },
+  { value: 'price-asc', label: 'Lowest price' },
+  { value: 'rating-desc', label: 'Highest rated' },
+  { value: 'name-asc', label: 'Name A→Z' },
+];
+
+// parseList is now imported from utils/beanFilters.js
+
+function buildSortFn(sort, location) {
+  switch (sort) {
+    case 'distance-asc':
+      return (a, b) => (distanceFor(a, location) ?? Infinity) - (distanceFor(b, location) ?? Infinity);
+    case 'cpg-desc':
+      return (a, b) => (cheapestCpg(b) ?? -Infinity) - (cheapestCpg(a) ?? -Infinity);
+    case 'price-asc':
+      return (a, b) => (cheapestPrice(a) ?? Infinity) - (cheapestPrice(b) ?? Infinity);
+    case 'rating-desc':
+      return (a, b) => (b.rating?.average ?? -1) - (a.rating?.average ?? -1);
+    case 'name-asc':
+      return (a, b) => (a.name || '').localeCompare(b.name || '');
+    case 'cpg-asc':
+    default:
+      return (a, b) => (cheapestCpg(a) ?? Infinity) - (cheapestCpg(b) ?? Infinity);
+  }
+}
+
+function distanceFor(bean, location) {
+  if (!location || !bean.roaster?.latitude || !bean.roaster?.longitude) return null;
+  return haversineKm(
+    { lat: location.lat, lng: location.lng },
+    { lat: bean.roaster.latitude, lng: bean.roaster.longitude }
+  );
+}
+
+// Reference-variant ¢/g — the variant closest to 1 lb (454 g). This
+// makes the sort fair: a roaster's wholesale 5-lb price (which is often
+// dramatically cheaper per-gram than retail) doesn't artificially win.
+function referenceVariantFor(b) {
+  const inStock = (b.variants || []).filter((v) => v.in_stock);
+  const pool = inStock.length ? inStock : (b.variants || []);
+  return pool.reduce((best, v) => {
+    if (best == null) return v;
+    const dB = Math.abs(best.bag_weight_grams - 454);
+    const dV = Math.abs(v.bag_weight_grams - 454);
+    if (dV < dB) return v;
+    if (dV === dB && v.bag_weight_grams < best.bag_weight_grams) return v;
+    return best;
+  }, null);
+}
+function cheapestCpg(b) {
+  const v = referenceVariantFor(b);
+  if (!v) return null;
+  return v.price_per_gram ?? (v.price && v.bag_weight_grams ? v.price / v.bag_weight_grams : null);
+}
+function cheapestPrice(b) {
+  const v = referenceVariantFor(b);
+  return v?.price ?? null;
+}
+
+function labelForValue(key, value, roasters) {
+  if (key === 'country') return countryName(value) || value;
+  if (key === 'roaster') return roasters?.find((r) => r.slug === value)?.name || value;
+  if (key === 'blend') return value === 'single-origin' ? 'Single Origin' : 'Blend';
+  if (key === 'elevation') {
+    return ELEVATION_TIERS.find((t) => t.value === value)?.label || value;
+  }
+  // Process / Roast / Varietal / Tasting note — stored lowercase, displayed
+  // title-case to match the dropdown rendering.
+  return titleCase(value);
+}
+
+function normalize(s) {
+  return (s || '').toString().toLowerCase().trim();
+}
+
+/**
+ * Title-case a normalized lowercase value for display in dropdowns and
+ * active-filter chips. Stored values stay lowercase (so filtering / URL
+ * matching is case-insensitive); we just prettify on the way out.
+ *
+ *   "washed"           → "Washed"
+ *   "yellow bourbon"   → "Yellow Bourbon"
+ *   "milk chocolate"   → "Milk Chocolate"
+ *   "medium-dark"      → "Medium-Dark"   (hyphenated halves both capped)
+ */
+function titleCase(s) {
+  if (!s) return s;
+  return String(s).replace(/\b([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/* ----------------- RoasterPanel ----------------- */
+
+function RoasterPanel({ roaster, onClear }) {
+  const addressParts = [
+    roaster.street_address, roaster.city, roaster.region,
+    roaster.postal_code, roaster.country_code ? countryName(roaster.country_code) : null,
+  ].filter(Boolean);
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden flex flex-col">
-      {bean.image_url && (
-        <div className="aspect-[4/3] bg-amber-50 overflow-hidden border-b border-amber-100">
-          <img
-            src={bean.image_url}
-            alt={bean.name}
-            loading="lazy"
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        </div>
-      )}
-      <div className="p-4 flex flex-col flex-1">
-      <div className="flex justify-between items-start gap-2 mb-1">
-        <Link to={`/roasters/${bean.roaster.slug}`} className="text-xs text-amber-600 hover:underline uppercase tracking-wide">
-          {bean.roaster.name}
-        </Link>
-        <div className="flex items-center gap-2">
-          {bean.best_price_per_gram != null && (
-            <span className="text-xs font-mono text-amber-700">${bean.best_price_per_gram.toFixed(3)}/g</span>
-          )}
-          <WishlistHeart coffeeId={bean.id} />
-        </div>
-      </div>
-      <h3 className="text-lg font-bold leading-tight">
-        <Link to={`/c/${bean.id}`} className="text-amber-900 hover:underline">{bean.name}</Link>
-      </h3>
-      {bean.origin && <div className="text-sm text-amber-700 mt-0.5">{bean.origin}</div>}
-
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        <FilterChip
-          onClick={() => onTagClick('blend', bean.is_blend ? 'blend' : 'single')}
-          color={bean.is_blend ? 'orange' : 'cyan'}
-        >
-          {bean.is_blend ? 'Blend' : 'Single-origin'}
-        </FilterChip>
-        {bean.country && <FilterChip onClick={() => onTagClick('country', bean.country)} color="cyan">{bean.country}</FilterChip>}
-        {bean.process && <FilterChip onClick={() => onTagClick('process', bean.process)} color="amber">{bean.process}</FilterChip>}
-        {bean.roast_level && <FilterChip onClick={() => onTagClick('roast_level', bean.roast_level)} color="orange">{bean.roast_level}</FilterChip>}
-        {bean.varietal && <FilterChip onClick={() => onTagClick('varietal', bean.varietal)} color="stone">{bean.varietal}</FilterChip>}
-      </div>
-
-      {bean.matches?.length > 0 && (
-        <div className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          matches: {bean.matches.slice(0, 4).join(' · ')}
-        </div>
-      )}
-
-      {bean.tasting_notes && (
-        <div className="text-sm text-amber-800 italic mt-3 leading-relaxed">{bean.tasting_notes}</div>
-      )}
-
-      {def && (
-        <div className="mt-auto pt-3 border-t border-amber-100 mt-3 flex items-end justify-between gap-2 flex-wrap">
-          <div className="text-xs text-amber-600">
-            <span className="text-amber-900 font-medium">{formatBagWeight(def.bag_weight_grams)}</span>
-            {' · '}<span className="text-amber-900 font-medium">${def.price.toFixed(2)}</span>
-          </div>
-          <div className="flex gap-1.5">
-            {user && (
-              <button
-                onClick={() => { setShowForm((s) => !s); setSavedMsg(false); }}
-                className="bg-green-700 hover:bg-green-800 text-white text-xs px-2.5 py-1.5 rounded-md transition-colors"
-              >
-                {showForm ? 'Cancel' : '☕ I tasted this'}
-              </button>
-            )}
+    <div className="bg-white border border-amber-200 rounded-xl p-5 mb-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-2xl font-bold text-amber-900">{roaster.name}</h2>
             <button
-              onClick={() => onFindSimilar(bean)}
-              className="bg-amber-700 hover:bg-amber-800 text-white text-xs px-3 py-1.5 rounded-md transition-colors"
+              onClick={onClear}
+              className="text-xs text-amber-600 hover:text-amber-900 underline"
             >
-              Find similar →
+              ← Show all roasters
             </button>
           </div>
+          {addressParts.length > 0 && (
+            <div className="text-sm text-amber-700 mt-1">📍 {addressParts.join(', ')}</div>
+          )}
+          {roaster.description && (
+            <p className="text-sm text-amber-900 mt-3 leading-relaxed line-clamp-3">{roaster.description}</p>
+          )}
         </div>
-      )}
-
-      {savedMsg && (
-        <div className="mt-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2">
-          Tasting saved.
+        <div className="flex flex-col items-end gap-2">
+          {roaster.website && (
+            <a
+              href={roaster.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-amber-800 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded-lg"
+            >
+              🌐 Visit roaster's site
+            </a>
+          )}
         </div>
-      )}
-      {showForm && (
-        <div className="mt-3">
-          <TastingForm
-            coffee={bean}
-            onSaved={() => { setShowForm(false); setSavedMsg(true); }}
-            onCancel={() => setShowForm(false)}
-          />
-        </div>
-      )}
       </div>
+      {(roaster.shipping_cost != null || roaster.free_shipping_over != null || roaster.shipping_notes) && (
+        <div className="mt-3 pt-3 border-t border-amber-100 text-xs text-amber-800 flex flex-wrap gap-4">
+          {roaster.shipping_cost != null && <span>📦 Shipping: <strong>${Number(roaster.shipping_cost).toFixed(2)}</strong></span>}
+          {roaster.free_shipping_over != null && <span>🎁 Free over: <strong>${Number(roaster.free_shipping_over).toFixed(2)}</strong></span>}
+          {roaster.shipping_notes && <span className="text-amber-600 italic line-clamp-1 max-w-md">{roaster.shipping_notes}</span>}
+        </div>
+      )}
     </div>
-  );
-}
-
-const COLOR_CLASSES = {
-  cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100',
-  amber: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',
-  orange: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
-  stone: 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100',
-};
-
-function FilterChip({ children, color, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-[11px] px-2 py-0.5 rounded-full border capitalize transition-colors ${COLOR_CLASSES[color]}`}
-    >
-      {children}
-    </button>
   );
 }

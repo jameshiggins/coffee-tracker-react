@@ -54,5 +54,43 @@ export function useUserLocation() {
     } catch {}
   }
 
-  return { location, setLocation, clearLocation: () => setLocation(null) };
+  /**
+   * Ask the browser for high-accuracy device location. Requires user
+   * permission grant. Returns a promise that resolves with the new
+   * location or rejects on denial / unavailability.
+   *
+   * Use this when the user wants meter-accurate distance instead of the
+   * city-level IP fallback. Result is persisted to localStorage so we
+   * don't re-prompt on every visit.
+   */
+  function requestPreciseLocation() {
+    return new Promise((resolve, reject) => {
+      if (!('geolocation' in navigator)) {
+        reject(new Error('Geolocation API unavailable'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const next = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            label: 'My location',
+            source: 'gps',
+            accuracy_m: Math.round(pos.coords.accuracy ?? 0),
+          };
+          setLocation(next);
+          resolve(next);
+        },
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  return {
+    location,
+    setLocation,
+    clearLocation: () => setLocation(null),
+    requestPreciseLocation,
+  };
 }

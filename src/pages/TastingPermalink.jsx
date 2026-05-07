@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { ratingToStars, formatStars } from '../utils/rating.js';
+import ReportTastingButton from '../components/ReportTastingButton.jsx';
 
 /**
  * /t/:id — per-tasting public permalink. 404s if the tasting is private.
@@ -75,6 +76,10 @@ export default function TastingPermalink() {
         {tasting.notes && (
           <div className="text-amber-900 mt-4 italic whitespace-pre-line">{tasting.notes}</div>
         )}
+
+        <div className="mt-4 pt-3 border-t border-amber-100 flex justify-end">
+          <ReportTastingButton tastingId={tasting.id} />
+        </div>
       </div>
     </div>
   );

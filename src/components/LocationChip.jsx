@@ -19,8 +19,19 @@ const PRESETS = [
 ];
 
 export default function LocationChip() {
-  const { location, setLocation, clearLocation } = useUserLocation();
+  const { location, setLocation, clearLocation, requestPreciseLocation } = useUserLocation();
   const [open, setOpen] = useState(false);
+  const [gpsState, setGpsState] = useState('idle'); // idle | requesting | denied
+
+  function onPreciseClick() {
+    setGpsState('requesting');
+    requestPreciseLocation()
+      .then(() => { setGpsState('idle'); setOpen(false); })
+      .catch(() => setGpsState('denied'));
+  }
+
+  // Show source hint on the chip so the user knows why distances may be coarse.
+  const sourceTag = location?.source === 'gps' ? '🎯' : location?.source === 'manual' ? '📍' : '🌐';
 
   return (
     <div className="relative inline-block">
@@ -28,11 +39,25 @@ export default function LocationChip() {
         onClick={() => setOpen((v) => !v)}
         className="text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors"
       >
-        {location ? `📍 Near ${location.label || 'you'}` : '📍 Set location'}
+        {location ? `${sourceTag} Near ${location.label || 'you'}` : '📍 Set location'}
         <span className="ml-1 opacity-60">▾</span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-20 min-w-[200px] py-1">
+        <div className="absolute right-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-20 min-w-[220px] py-1">
+          <button
+            onClick={onPreciseClick}
+            disabled={gpsState === 'requesting'}
+            className="block w-full text-left px-3 py-2 text-sm hover:bg-amber-50 border-b border-amber-100 disabled:opacity-60"
+          >
+            🎯 <span className="font-semibold">Use precise location</span>
+            <div className="text-xs text-amber-600 mt-0.5">
+              {gpsState === 'denied'
+                ? 'Permission denied — check browser settings'
+                : gpsState === 'requesting'
+                ? 'Asking your browser…'
+                : 'Meter-accurate, asks for permission'}
+            </div>
+          </button>
           {PRESETS.map((p) => (
             <button
               key={p.label}

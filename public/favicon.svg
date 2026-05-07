@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Coffee bean favicon.
+  Two warm-brown bean halves with the central crease, on a cream background.
+  Drawn at 64x64 viewBox so it looks crisp at any rendered size.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Coffee bean">
+  <!-- Soft cream background circle -->
+  <circle cx="32" cy="32" r="30" fill="#fef6e7"/>
+
+  <!--
+    The bean itself: a tilted ellipse that fills most of the circle.
+    Group rotated -25° so the bean leans top-right to bottom-left.
+  -->
+  <g transform="translate(32 32) rotate(-25)">
+    <!-- Outer bean body -->
+    <ellipse cx="0" cy="0" rx="22" ry="13"
+             fill="#6f4326"
+             stroke="#3e2412"
+             stroke-width="1.5"/>
+
+    <!--
+      The center crease. A gentle S-curve, slightly wider than a straight
+      line, with a subtle highlight to give the bean dimension.
+    -->
+    <path d="M -19 -1
+             Q -10 -6,  0  0
+             Q  10  6, 19  1"
+          fill="none"
+          stroke="#3e2412"
+          stroke-width="2"
+          stroke-linecap="round"/>
+    <!-- Highlight line just above the crease for a slight 3D feel -->
+    <path d="M -16 -3
+             Q -8 -7,  0 -2
+             Q  8  3, 16 -1"
+          fill="none"
+          stroke="#a87650"
+          stroke-width="1"
+          stroke-linecap="round"
+          opacity="0.7"/>
+  </g>
+</svg>

@@ -1,4 +1,6 @@
-const BASE = 'http://localhost:8000/api';
+// Vite injects import.meta.env.VITE_API_BASE at build time. Falls back
+// to localhost so dev still works without a .env file.
+const BASE = (import.meta.env?.VITE_API_BASE ?? 'http://localhost:8000') + '/api';
 
 async function getJson(path) {
   const res = await fetch(`${BASE}${path}`);
@@ -14,13 +16,19 @@ export const api = {
   getPublicTasting: (id) => getJson(`/tastings/${id}/public`),
   getUserProfile: (displayName) => getJson(`/users/${encodeURIComponent(displayName)}`),
 
-  forgotPassword: (email) => fetch(`http://localhost:8000/api/auth/forgot-password`, {
+  // Q17: anyone can flag a public tasting for moderator review.
+  reportTasting: (id) => fetch(`${BASE}/tastings/${id}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }).then((r) => r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))),
+
+  forgotPassword: (email) => fetch(`${BASE}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   }).then(async (r) => r.ok ? r.json() : Promise.reject(await r.text())),
 
-  resetPassword: (data) => fetch(`http://localhost:8000/api/auth/reset-password`, {
+  resetPassword: (data) => fetch(`${BASE}/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

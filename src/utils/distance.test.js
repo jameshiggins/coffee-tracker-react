@@ -23,12 +23,22 @@ describe('haversineKm', () => {
 });
 
 describe('formatKm', () => {
-  it('renders sub-1km as "<1 km"', () => {
-    expect(formatKm(0.4)).toBe('<1 km');
+  it('renders sub-1km in metres', () => {
+    expect(formatKm(0.4)).toBe('400 m');
+    expect(formatKm(0.65)).toBe('650 m');
+    expect(formatKm(0.05)).toBe('50 m');
   });
-  it('renders mid-range as integer km', () => {
-    expect(formatKm(7.4)).toBe('7 km');
+  it('suppresses suspiciously-tiny distances as ~here', () => {
+    expect(formatKm(0)).toBe('~here');
+    expect(formatKm(0.04)).toBe('~here');
+  });
+  it('renders 1-10km with 1-decimal precision', () => {
+    expect(formatKm(2.34)).toBe('2.3 km');
+    expect(formatKm(7.4)).toBe('7.4 km');
+  });
+  it('renders 10-100km as integer km', () => {
     expect(formatKm(99)).toBe('99 km');
+    expect(formatKm(42)).toBe('42 km');
   });
   it('rounds long distances to nearest 10km', () => {
     expect(formatKm(347)).toBe('350 km');
