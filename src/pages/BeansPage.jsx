@@ -245,6 +245,19 @@ export default function BeansPage() {
       count: counts[tier.value] || 0,
     }));
   }, [inStockUniverse]);
+  // Roaster picker — single-select (mirrors the ?roaster=slug deep-link
+  // the map uses). Alphabetical, not by count: you come here to find a
+  // *specific* roaster, so a scannable A→Z list beats a popularity sort.
+  const roasterOptions = useMemo(() => {
+    const bySlug = {};
+    for (const b of inStockUniverse) {
+      const r = b.roaster;
+      if (!r?.slug) continue;
+      if (!bySlug[r.slug]) bySlug[r.slug] = { value: r.slug, label: r.name, count: 0 };
+      bySlug[r.slug].count += 1;
+    }
+    return Object.values(bySlug).sort((a, b) => a.label.localeCompare(b.label));
+  }, [inStockUniverse]);
 
   function setFilter(key, value) {
     const next = new URLSearchParams(params);
@@ -336,6 +349,12 @@ export default function BeansPage() {
             { value: 'blend', label: 'Blend' },
           ]}
           onPick={(v) => setFilter('blend', v)}
+        />
+        <FilterDropdown
+          label="Roaster"
+          value={filters.roaster}
+          options={roasterOptions}
+          onPick={(v) => setFilter('roaster', v)}
         />
         <FilterDropdown
           label="Roast"

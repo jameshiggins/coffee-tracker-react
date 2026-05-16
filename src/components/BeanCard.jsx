@@ -39,6 +39,7 @@ export default function BeanCard({
   const [savedMsg, setSavedMsg] = useState(false);
   const [showAllTastingsModal, setShowAllTastingsModal] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   // Lazy-load tastings only when card expands. Reload if the coffee changes.
   useEffect(() => {
@@ -81,7 +82,10 @@ export default function BeanCard({
               src={coffee.image_url}
               alt={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
               loading="lazy"
-              className={`flex-shrink-0 rounded-lg object-cover border border-amber-50 ${
+              data-no-expand
+              onClick={(e) => { e.stopPropagation(); setShowImageModal(true); }}
+              title="Click to enlarge"
+              className={`flex-shrink-0 rounded-lg object-cover border border-amber-50 cursor-zoom-in hover:brightness-95 transition ${
                 isExpanded ? 'w-32 h-32' : 'w-20 h-20'
               }`}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -341,6 +345,15 @@ export default function BeanCard({
           onClose={() => setShowAllTastingsModal(false)}
         />
       )}
+
+      {/* Image lightbox — bag labels often have text people want to read */}
+      {showImageModal && coffee.image_url && (
+        <ImageLightbox
+          src={coffee.image_url}
+          caption={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -468,6 +481,41 @@ function AllTastingsModal({ coffee, tastings, onClose }) {
           {tastings.map((t) => <TastingRow key={t.id} t={t} />)}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ImageLightbox({ src, caption, onClose }) {
+  useEffect(() => {
+    function onEsc(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onEsc);
+    return () => document.removeEventListener('keydown', onEsc);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4"
+      onClick={onClose}
+      data-no-expand
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-5 text-white/80 hover:text-white text-3xl leading-none"
+        aria-label="Close image"
+      >
+        ✕
+      </button>
+      <img
+        src={src}
+        alt={caption}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg shadow-2xl bg-white"
+      />
+      {caption && (
+        <div className="mt-3 text-sm text-white/90 text-center max-w-[92vw] truncate">
+          {caption}
+        </div>
+      )}
     </div>
   );
 }

@@ -50,11 +50,13 @@ export const BOOLEAN_KEYS = new Set();
  * Central American mid-altitude is 1200-1500m, classic specialty is
  * 1500-1800m, and "extra altitude" / Geisha territory starts at 1800m+.
  */
+// Labels kept short (no comma-thousands, no space before "m") so they
+// don't wrap in the ~220px filter dropdown / active-filter chips.
 export const ELEVATION_TIERS = [
-  { value: 'low',       label: 'Low (<1,200 m)',           min: 0,    max: 1200 },
-  { value: 'medium',    label: 'Medium (1,200–1,500 m)',    min: 1200, max: 1500 },
-  { value: 'high',      label: 'High (1,500–1,800 m)',      min: 1500, max: 1800 },
-  { value: 'very-high', label: 'Very high (1,800 m+)',     min: 1800, max: 9999 },
+  { value: 'low',       label: 'Low (<1200m)',       min: 0,    max: 1200 },
+  { value: 'medium',    label: 'Med (1200–1500m)',   min: 1200, max: 1500 },
+  { value: 'high',      label: 'High (1500–1800m)',  min: 1500, max: 1800 },
+  { value: 'very-high', label: 'Very high (1800m+)', min: 1800, max: 9999 },
 ];
 
 export function elevationTier(meters) {
