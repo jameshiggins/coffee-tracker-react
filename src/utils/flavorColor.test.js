@@ -40,22 +40,28 @@ describe('flavorColor', () => {
 });
 
 describe('splitTastingNotes', () => {
+  // Notes are normalized to Title Case on the way out (so chips render
+  // consistently regardless of how the roaster wrote them).
   it('splits on comma', () => {
-    expect(splitTastingNotes('jasmine, bergamot, honey')).toEqual(['jasmine', 'bergamot', 'honey']);
+    expect(splitTastingNotes('jasmine, bergamot, honey')).toEqual(['Jasmine', 'Bergamot', 'Honey']);
   });
   it('splits on slash', () => {
     expect(splitTastingNotes('blueberry / chocolate / caramel'))
-      .toEqual(['blueberry', 'chocolate', 'caramel']);
+      .toEqual(['Blueberry', 'Chocolate', 'Caramel']);
   });
   it('splits on " and "', () => {
-    expect(splitTastingNotes('jasmine and honey')).toEqual(['jasmine', 'honey']);
+    expect(splitTastingNotes('jasmine and honey')).toEqual(['Jasmine', 'Honey']);
   });
   it('splits on " & "', () => {
-    expect(splitTastingNotes('peach & cream')).toEqual(['peach', 'cream']);
+    expect(splitTastingNotes('peach & cream')).toEqual(['Peach', 'Cream']);
   });
   it('drops empty fragments and overly long ones', () => {
     expect(splitTastingNotes('honey,, , this is way too long to be a tasting note really'))
-      .toEqual(['honey']);
+      .toEqual(['Honey']);
+  });
+  it('normalizes casing — lowercase, ALL CAPS, and mixed all become Title Case', () => {
+    expect(splitTastingNotes('blueberry, DARK CHOCOLATE, CARAMEL'))
+      .toEqual(['Blueberry', 'Dark Chocolate', 'Caramel']);
   });
   it('returns empty for null/empty input', () => {
     expect(splitTastingNotes(null)).toEqual([]);

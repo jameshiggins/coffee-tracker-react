@@ -156,6 +156,17 @@ export function flavorColor(note) {
 }
 
 /**
+ * Normalize a note to consistent Title Case ("dark CHOCOLATE" →
+ * "Dark Chocolate", "blueberry" → "Blueberry"). Lowercase-then-cap so
+ * ALL-CAPS source data gets tamed too. Matches the casing the /beans
+ * filter dropdown produces (it title-cases a lowercased key), so chips
+ * and filter labels read identically.
+ */
+export function titleCaseNote(s) {
+  return String(s).toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+/**
  * Split a roaster's tasting_notes string into individual notes.
  *
  * Handles:
@@ -239,5 +250,7 @@ function sanitizeNote(token) {
     if (cat.name === 'other') return null;
   }
 
-  return s;
+  // Last step: normalize casing AFTER all the all-caps / CamelCase
+  // reject checks above (which need the original casing to work).
+  return titleCaseNote(s);
 }
