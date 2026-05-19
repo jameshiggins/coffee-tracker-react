@@ -61,7 +61,7 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
     <div ref={wrapRef} className="relative inline-block">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`text-sm px-3 py-2 rounded-lg border transition-colors ${
+        className={`text-sm px-3 py-2 rounded-lg border transition-colors max-w-full truncate ${
           active
             ? 'bg-amber-100 border-amber-300 text-amber-900 font-medium'
             : 'bg-white border-amber-200 text-amber-700 hover:border-amber-400'
@@ -71,7 +71,10 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
         <span className="ml-1 opacity-60">▾</span>
       </button>
       {open && (
-        <div className="absolute left-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-30 min-w-[220px] max-h-[60vh] overflow-y-auto py-1">
+        // Width is clamped to the viewport (minus the page gutter) so a
+        // 220px panel never causes horizontal scroll or clips on a 360px
+        // phone. left-0 + max-width keeps it on-screen near either edge.
+        <div className="absolute left-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-30 w-[max(13.75rem,0px)] max-w-[calc(100vw-2.5rem)] max-h-[60vh] overflow-y-auto py-1">
           {active && (
             <>
               <button
@@ -91,7 +94,7 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
               return (
                 <label
                   key={opt.value}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-amber-50 cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 cursor-pointer ${
                     checked ? 'font-semibold text-amber-800 bg-amber-50' : ''
                   }`}
                 >
@@ -113,7 +116,7 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
               <button
                 key={opt.value}
                 onClick={() => { onPick(opt.value); setOpen(false); }}
-                className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-amber-50 ${
+                className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 ${
                   selected === opt.value ? 'font-semibold text-amber-800 bg-amber-50' : ''
                 }`}
               >

@@ -37,6 +37,9 @@ export default function BeansPage() {
   const { location, requestPreciseLocation } = useUserLocation();
   const [expandedId, setExpandedId] = useState(null);
   const [gpsRequested, setGpsRequested] = useState(false);
+  // Mobile-only: the filter group is collapsed behind a "Filters" toggle
+  // so the page isn't a giant stack of buttons. Always-open at sm:+.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     api.listRoasters().then((d) => setRoasters(d.roasters)).catch((e) => setError(e.message));
@@ -358,6 +361,9 @@ export default function BeansPage() {
       activeFilterChips.push({ key, value });
     }
   }
+  // Count for the mobile "Filters" badge — every active filter except the
+  // free-text search (which has its own always-visible box on mobile).
+  const activeFilterCount = activeFilterChips.filter((c) => c.key !== 'q').length;
 
   return (
     <div className="p-4 md:p-6">
@@ -368,7 +374,44 @@ export default function BeansPage() {
       {/* Sort is intentionally NOT in this group — it lives in its own
           right-aligned slot below so it reads as a sort, not a filter. */}
       <div className="bg-white rounded-xl border border-amber-100 p-3 mb-4">
-       <div className="flex items-center gap-2 flex-wrap">
+       {/* Mobile: a single "Filters" toggle replaces the wall of dropdowns.
+           Search stays out here (primary action). sm:+ hides this row and
+           shows the full inline filter group below, exactly as before. */}
+       <div className="flex items-center gap-2 sm:hidden">
+         <button
+           type="button"
+           onClick={() => setMobileFiltersOpen((v) => !v)}
+           aria-expanded={mobileFiltersOpen}
+           className={`flex items-center gap-2 px-3 py-2.5 min-h-[44px] rounded-lg border text-sm font-medium transition-colors flex-shrink-0 ${
+             activeFilterCount > 0
+               ? 'bg-amber-100 border-amber-300 text-amber-900'
+               : 'bg-white border-amber-200 text-amber-700'
+           }`}
+         >
+           <span aria-hidden="true">⚙</span>
+           Filters
+           {activeFilterCount > 0 && (
+             <span className="bg-amber-700 text-white text-xs rounded-full min-w-[1.25rem] h-5 px-1.5 inline-flex items-center justify-center">
+               {activeFilterCount}
+             </span>
+           )}
+           <span className={`opacity-60 text-xs transition-transform ${mobileFiltersOpen ? 'rotate-180' : ''}`}>▾</span>
+         </button>
+         <label htmlFor="beans-search-m" className="sr-only">
+           Search beans, roasters, origins, and tasting notes
+         </label>
+         <input
+           id="beans-search-m"
+           type="search"
+           value={filters.q}
+           onChange={(e) => setFilter('q', e.target.value)}
+           placeholder="Search…"
+           aria-label="Search beans, roasters, origins, and tasting notes"
+           className="flex-1 min-w-0 px-3 py-2.5 min-h-[44px] border-2 border-amber-100 rounded-lg text-sm focus:outline-none focus:border-amber-500"
+         />
+       </div>
+
+       <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} sm:flex items-center gap-2 flex-wrap mt-3 sm:mt-0`}>
         <FilterDropdown
           label="Type"
           value={filters.blend}
@@ -433,6 +476,7 @@ export default function BeansPage() {
           options={noteOptions}
           onPick={(v) => setFilter('note', v)}
         />
+        {/* Desktop search — hidden on mobile (the toggle row has its own). */}
         <label htmlFor="beans-search" className="sr-only">
           Search beans, roasters, origins, and tasting notes
         </label>
@@ -443,15 +487,15 @@ export default function BeansPage() {
           onChange={(e) => setFilter('q', e.target.value)}
           placeholder="Search beans, roasters…"
           aria-label="Search beans, roasters, origins, and tasting notes"
-          className="flex-1 min-w-[200px] px-3 py-2 border-2 border-amber-100 rounded-lg text-sm focus:outline-none focus:border-amber-500"
+          className="hidden sm:block flex-1 min-w-[200px] px-3 py-2 border-2 border-amber-100 rounded-lg text-sm focus:outline-none focus:border-amber-500"
         />
-        <label className="text-sm text-amber-800 cursor-pointer select-none flex items-center gap-1.5"
+        <label className="text-sm text-amber-800 cursor-pointer select-none flex items-center gap-1.5 py-2 sm:py-0"
                title="Include sold-out beans and ones the roaster has dropped from their catalog">
           <input
             type="checkbox"
             checked={showHistorical}
             onChange={(e) => setShowHistorical(e.target.checked)}
-            className="accent-amber-700"
+            className="accent-amber-700 w-4 h-4"
           />
           Show historical
         </label>
@@ -462,7 +506,10 @@ export default function BeansPage() {
             at a glance. Divider + "Sort by" label signal it's a sort, not
             a filter; the dropdown button shows the active sort by name. ---------- */}
        <div className="mt-3 pt-3 border-t border-amber-100 flex items-center justify-end gap-2">
-         <span className="text-sm text-amber-700 font-semibold" aria-hidden="true">↕</span>
+         <span className="text-sm text-amber-700 font-semibold flex items-center gap-1.5">
+           <span aria-hidden="true">↕</span>
+           <span className="sm:hidden">Sort</span>
+         </span>
          <FilterDropdown
            label="Sort"
            value={sort}

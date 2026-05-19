@@ -89,7 +89,7 @@ function TastingRow({ tasting: t }) {
               <div className="text-xs text-amber-500">{t.tasted_on}{t.brew_method ? ` · ${t.brew_method}` : ''}</div>
             )}
             {removed && (
-              <div className="inline-block mt-1 text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100">
+              <div className="inline-block mt-1 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100">
                 no longer sold
               </div>
             )}
@@ -99,7 +99,7 @@ function TastingRow({ tasting: t }) {
               {ratingStars(t.rating) || <span className="text-amber-300 text-sm">no rating</span>}
             </div>
             {!t.is_public && (
-              <div className="text-[10px] uppercase tracking-wide text-amber-400 mt-1">private</div>
+              <div className="text-[11px] sm:text-[10px] uppercase tracking-wide text-amber-400 mt-1">private</div>
             )}
           </div>
         </div>

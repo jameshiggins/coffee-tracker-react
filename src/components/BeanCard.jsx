@@ -106,7 +106,7 @@ export default function BeanCard({
             <h3 className="text-base font-semibold text-amber-900 leading-tight mt-0.5">
               {coffee.name}
               {coffee.is_removed && (
-                <span className="ml-2 text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 align-middle">
+                <span className="ml-2 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 align-middle">
                   no longer sold
                 </span>
               )}
@@ -471,11 +471,17 @@ function AllTastingsModal({ coffee, tastings, onClose }) {
         className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-amber-100 flex items-center justify-between">
-          <h3 className="font-bold text-amber-900">
+        <div className="p-4 border-b border-amber-100 flex items-center justify-between gap-3">
+          <h3 className="font-bold text-amber-900 min-w-0 truncate">
             All tastings ({tastings.length}) · {coffee.name}
           </h3>
-          <button onClick={onClose} className="text-amber-700 hover:text-amber-900 text-xl leading-none">✕</button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-amber-700 hover:text-amber-900 text-xl leading-none flex-shrink-0 w-11 h-11 -mr-2 inline-flex items-center justify-center"
+          >
+            ✕
+          </button>
         </div>
         <div className="overflow-y-auto p-4 space-y-2 flex-1">
           {tastings.map((t) => <TastingRow key={t.id} t={t} />)}
@@ -500,7 +506,11 @@ function ImageLightbox({ src, caption, onClose }) {
     >
       <button
         onClick={onClose}
-        className="absolute top-4 right-5 text-white/80 hover:text-white text-3xl leading-none"
+        className="absolute text-white/80 hover:text-white text-3xl leading-none w-11 h-11 inline-flex items-center justify-center"
+        style={{
+          top: 'calc(env(safe-area-inset-top) + 0.5rem)',
+          right: 'calc(env(safe-area-inset-right) + 0.75rem)',
+        }}
         aria-label="Close image"
       >
         ✕

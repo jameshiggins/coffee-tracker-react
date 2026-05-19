@@ -136,44 +136,44 @@ export default function RoastersPage() {
 
   return (
     <>
-      <div className="p-5 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-4 items-center">
-        <div className="flex-1 min-w-[200px]">
+      <div className="p-4 sm:p-5 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-3 sm:gap-4 items-center">
+        <div className="flex-1 min-w-[12rem] basis-full sm:basis-auto">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search roasters, cities, regions, or coffee names..."
+            placeholder="Search roasters, cities, regions…"
             className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-amber-800"
           />
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           {allCountries.length > 1 && (
             <select value={country} onChange={(e) => setCountry(e.target.value)}
-                    className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
+                    className="px-3 py-3 sm:py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
               <option value="">All countries</option>
               {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
             </select>
           )}
           {allRegions.length > 0 && (
             <select value={region} onChange={(e) => setRegion(e.target.value)}
-                    className="px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
+                    className="px-3 py-3 sm:py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-amber-800">
               <option value="">All states/provinces</option>
               {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           )}
-          <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-sm text-amber-800 cursor-pointer select-none py-2 sm:py-0">
             <input
               type="checkbox"
               checked={showOutOfStock}
               onChange={(e) => setShowOutOfStock(e.target.checked)}
-              className="accent-amber-700"
+              className="accent-amber-700 w-4 h-4"
             />
             Show sold out
           </label>
           {hasFilters && (
             <button
               onClick={() => { setSearch(''); setRegion(''); setCountry(''); }}
-              className="px-5 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-3 sm:py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Clear
             </button>
@@ -181,7 +181,7 @@ export default function RoastersPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto m-5">
+      <div className="overflow-x-auto m-3 sm:m-5">
         {rows.length === 0 ? (
           <div className="text-center py-16 px-5 text-gray-600">
             <h3 className="mb-2 text-amber-800 text-xl font-semibold">No roasters found</h3>

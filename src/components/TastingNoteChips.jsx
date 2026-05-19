@@ -12,8 +12,11 @@ export default function TastingNoteChips({ notes, onNoteClick = null, size = 'sm
   const items = typeof notes === 'string' ? splitTastingNotes(notes) : (Array.isArray(notes) ? notes : []);
   if (items.length === 0) return null;
 
+  // xs: 12px on phones (legibility floor — no sub-12px body text on
+  // mobile) shrinking back to the original 10px at sm:+ so the desktop
+  // card stays pixel-identical.
   const sizeClass = size === 'xs'
-    ? 'text-[10px] px-1.5 py-0.5'
+    ? 'text-xs sm:text-[10px] px-2 py-0.5 sm:px-1.5'
     : size === 'md'
     ? 'text-sm px-2.5 py-1'
     : 'text-xs px-2 py-0.5';

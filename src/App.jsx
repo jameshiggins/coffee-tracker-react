@@ -50,6 +50,27 @@ export default function App() {
           border-radius: 0 0 8px 0; text-decoration: none; font-weight: 600;
         }
         .skip-link:focus { left: 0; }
+        /* iOS safe-area: keep the full-bleed phone shell clear of the
+           notch / Dynamic Island and the home-indicator gesture bar.
+           Desktop (no insets) is unaffected — env() resolves to 0. */
+        .app-shell {
+          padding-left: env(safe-area-inset-left);
+          padding-right: env(safe-area-inset-right);
+        }
+        .app-safe-top { padding-top: env(safe-area-inset-top); }
+        .app-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        /* Map page: on phones the map must be the hero, not collapsed by
+           flex-basis or a desktop-tuned magic number. Explicit tall height
+           with a vh→dvh progressive enhancement (dvh tracks the shrinking
+           mobile URL bar). Reset entirely at md:+ so the desktop
+           sidebar+map row keeps its original calc() height. */
+        .map-hero { height: 68vh; min-height: 380px; }
+        @supports (height: 100dvh) {
+          .map-hero { height: 72dvh; }
+        }
+        @media (min-width: 768px) {
+          .map-hero { height: auto; min-height: 0; }
+        }
         @media (prefers-reduced-motion: reduce) {
           *, *::before, *::after {
             animation-duration: 0.01ms !important;
@@ -60,25 +81,38 @@ export default function App() {
         }
       `}</style>
       <a href="#main" className="skip-link">Skip to main content</a>
-      <div className="p-5">
-        <div className="max-w-[1400px] mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+      {/* Full-bleed on phone (no outer padding / no card chrome) so it
+          reads as a native app, not a shrunk desktop site. The boxed
+          1400px card + rounding + shadow returns at sm:+ unchanged. */}
+      <div className="app-shell sm:p-5">
+        <div className="max-w-[1400px] mx-auto bg-white sm:rounded-2xl sm:shadow-2xl overflow-hidden">
           <header
-            className="text-white p-6 md:p-8"
+            className="app-safe-top text-white px-4 py-5 sm:p-6 md:p-8"
             style={{ background: 'linear-gradient(135deg, #6F4E37 0%, #8B4513 100%)' }}
           >
-            <div className="flex justify-between items-center mb-4 gap-2">
+            <div className="flex justify-between items-center gap-2 mb-3 sm:mb-4">
               <LocationChip />
               <AuthCorner />
             </div>
             <div className="text-center">
               <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
-                <Logo dark size="lg" />
+                {/* Smaller wordmark on phone so the header doesn't dominate
+                    the first screen; full size returns at sm:. */}
+                <span className="sm:hidden"><Logo dark size="md" /></span>
+                <span className="hidden sm:inline-flex"><Logo dark size="lg" /></span>
               </Link>
-              <p className="text-sm md:text-base opacity-80 mt-2">
+              <p className="text-xs sm:text-sm md:text-base opacity-80 mt-1.5 sm:mt-2">
                 The map of Canadian specialty coffee.
               </p>
             </div>
-            <nav className="mt-5 flex gap-2 justify-center flex-wrap">
+            {/* Mobile: horizontal scroll strip (no ragged wrap, no clipping);
+                sm:+ keeps the original centered wrap layout. */}
+            <nav
+              className="mt-4 sm:mt-5 flex gap-2 justify-start sm:justify-center
+                         flex-nowrap sm:flex-wrap overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0
+                         [-ms-overflow-style:none] [scrollbar-width:none]
+                         [&::-webkit-scrollbar]:hidden"
+            >
               <NavTab to="/" end>Map</NavTab>
               <NavTab to="/roasters">Roasters</NavTab>
               <NavTab to="/beans">Beans</NavTab>
@@ -113,11 +147,11 @@ export default function App() {
           </Routes>
           </main>
 
-          <footer className="border-t border-amber-100 mt-6 px-6 py-4 text-xs text-amber-600 flex justify-between items-center flex-wrap gap-2">
+          <footer className="app-safe-bottom border-t border-amber-100 mt-6 px-4 sm:px-6 py-4 text-xs text-amber-600 flex justify-between items-center flex-wrap gap-2">
             <span>© 2026 Roastmap</span>
-            <span className="flex gap-4">
-              <Link to="/privacy" className="hover:text-amber-800 hover:underline">Privacy</Link>
-              <Link to="/terms" className="hover:text-amber-800 hover:underline">Terms</Link>
+            <span className="flex gap-2">
+              <Link to="/privacy" className="hover:text-amber-800 hover:underline px-2 py-1.5 -my-1.5">Privacy</Link>
+              <Link to="/terms" className="hover:text-amber-800 hover:underline px-2 py-1.5 -my-1.5">Terms</Link>
             </span>
           </footer>
         </div>
@@ -131,21 +165,31 @@ function AuthCorner() {
   const { user, logout } = useAuth();
   if (user) {
     return (
-      <div className="flex items-center gap-2 text-sm">
-        {user.avatar_url && <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-white/30" />}
-        <span className="text-white/90">{user.display_name || user.email}</span>
-        <button onClick={logout} className="text-white/70 hover:text-white text-xs underline ml-1">Sign out</button>
+      <div className="flex items-center gap-2 text-sm min-w-0">
+        {user.avatar_url && <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-white/30 flex-shrink-0" />}
+        {/* Name is the flexible part — truncate instead of pushing the
+            sign-out control off-screen on a narrow phone. Hidden below
+            xs-ish widths where the avatar alone identifies the user. */}
+        <span className="text-white/90 truncate max-w-[7rem] sm:max-w-none hidden min-[420px]:inline">
+          {user.display_name || user.email}
+        </span>
+        <button
+          onClick={logout}
+          className="text-white/70 hover:text-white text-xs underline flex-shrink-0 px-1 py-1.5"
+        >
+          Sign out
+        </button>
       </div>
     );
   }
   return (
-    <div className="flex gap-2 text-sm">
+    <div className="flex gap-2 text-sm flex-shrink-0">
       <Link to="/sign-in"
-            className="bg-white text-amber-900 hover:bg-white/90 px-3 py-1.5 rounded-md transition-colors">
+            className="bg-white text-amber-900 hover:bg-white/90 px-3 py-2 rounded-md transition-colors">
         Sign in
       </Link>
       <Link to="/sign-up"
-            className="text-white/90 hover:text-white px-3 py-1.5 rounded-md border border-white/30 transition-colors">
+            className="text-white/90 hover:text-white px-3 py-2 rounded-md border border-white/30 transition-colors hidden min-[400px]:inline-block">
         Sign up
       </Link>
     </div>
@@ -158,7 +202,7 @@ function NavTab({ to, end, children }) {
       to={to}
       end={end}
       className={({ isActive }) =>
-        `text-sm px-4 py-1.5 rounded-md transition-colors ${
+        `text-sm px-4 py-2.5 sm:py-1.5 rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
           isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/15 hover:text-white'
         }`
       }

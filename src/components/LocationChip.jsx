@@ -34,16 +34,18 @@ export default function LocationChip() {
   const sourceTag = location?.source === 'gps' ? '🎯' : location?.source === 'manual' ? '📍' : '🌐';
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block min-w-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors"
+        className="text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-2 min-h-[44px] sm:min-h-0 rounded-full transition-colors max-w-[10rem] sm:max-w-none truncate inline-flex items-center"
       >
-        {location ? `${sourceTag} Near ${location.label || 'you'}` : '📍 Set location'}
-        <span className="ml-1 opacity-60">▾</span>
+        <span className="truncate">
+          {location ? `${sourceTag} Near ${location.label || 'you'}` : '📍 Set location'}
+        </span>
+        <span className="ml-1 opacity-60 flex-shrink-0">▾</span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-20 min-w-[220px] py-1">
+        <div className="absolute left-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-20 w-[min(16rem,calc(100vw-2rem))] py-1">
           <button
             onClick={onPreciseClick}
             disabled={gpsState === 'requesting'}
@@ -62,7 +64,7 @@ export default function LocationChip() {
             <button
               key={p.label}
               onClick={() => { setLocation({ ...p, source: 'manual' }); setOpen(false); }}
-              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-amber-50 ${
+              className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 ${
                 location?.label === p.label ? 'font-semibold text-amber-800' : ''
               }`}
             >
@@ -72,7 +74,7 @@ export default function LocationChip() {
           <hr className="my-1 border-amber-100" />
           <button
             onClick={() => { clearLocation(); setOpen(false); }}
-            className="block w-full text-left px-3 py-1.5 text-sm hover:bg-amber-50 text-amber-600"
+            className="block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 text-amber-600"
           >
             Anywhere
           </button>

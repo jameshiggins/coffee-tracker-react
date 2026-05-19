@@ -40,7 +40,7 @@ export default function Wishlist() {
                     <Link to={`/roasters/${c.roaster.slug}`} className="hover:underline">{c.roaster.name}</Link>
                   </div>
                   {c.is_removed && (
-                    <div className="inline-block mt-1 text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100">
+                    <div className="inline-block mt-1 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100">
                       no longer sold
                     </div>
                   )}
