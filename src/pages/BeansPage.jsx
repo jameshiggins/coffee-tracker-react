@@ -11,7 +11,7 @@ import { haversineKm } from '../utils/distance.js';
 import BeanCard from '../components/BeanCard.jsx';
 import FilterDropdown from '../components/FilterDropdown.jsx';
 import { splitTastingNotes } from '../utils/flavorColor.js';
-import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList, ELEVATION_TIERS, elevationTier } from '../utils/beanFilters.js';
+import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList, ELEVATION_TIERS, elevationTier, CPG_TIERS, cpgTier } from '../utils/beanFilters.js';
 
 /**
  * Unified bean directory. The single canonical browse surface.
@@ -74,6 +74,7 @@ export default function BeansPage() {
     varietal: parseList(params.get('varietal')),
     note: parseList(params.get('note')),
     elevation: parseList(params.get('elevation')),
+    cpg: parseList(params.get('cpg')),
     blend: params.get('blend') ?? '',         // single: '', 'single-origin', 'blend'
     roaster: params.get('roaster') ?? '',     // single: roaster slug
   }), [params]);
@@ -114,6 +115,15 @@ export default function BeansPage() {
       list = list.filter((b) => {
         const tier = elevationTier(b.elevation_meters);
         return tier !== null && filters.elevation.includes(tier);
+      });
+    }
+    if (filters.cpg.length) {
+      // Reuse cheapestCpg (reference-variant ¢/g) so this agrees with the
+      // "Cheapest ¢/g" sort and the card prices. Beans with no priceable
+      // variant (null ¢/g) drop out while the filter is active.
+      list = list.filter((b) => {
+        const tier = cpgTier(cheapestCpg(b));
+        return tier !== null && filters.cpg.includes(tier);
       });
     }
     if (filters.blend === 'single-origin') list = list.filter((b) => !b.is_blend);
@@ -245,6 +255,21 @@ export default function BeansPage() {
       count: counts[tier.value] || 0,
     }));
   }, [inStockUniverse]);
+  // ¢/g tiers — count how many in-stock beans land in each price band,
+  // using the same reference-variant ¢/g as the "Cheapest ¢/g" sort so
+  // the numbers agree with what the cards show. Empty tiers stay listed.
+  const cpgOptions = useMemo(() => {
+    const counts = {};
+    for (const b of inStockUniverse) {
+      const t = cpgTier(cheapestCpg(b));
+      if (t) counts[t] = (counts[t] || 0) + 1;
+    }
+    return CPG_TIERS.map((tier) => ({
+      value: tier.value,
+      label: tier.label,
+      count: counts[tier.value] || 0,
+    }));
+  }, [inStockUniverse]);
   // Roaster picker — single-select (mirrors the ?roaster=slug deep-link
   // the map uses). Alphabetical, not by count: you come here to find a
   // *specific* roaster, so a scannable A→Z list beats a popularity sort.
@@ -339,8 +364,11 @@ export default function BeansPage() {
       {/* ---------- Roaster panel (when ?roaster filter active) ---------- */}
       {filteredRoaster && <RoasterPanel roaster={filteredRoaster} onClear={() => clearFilter('roaster')} />}
 
-      {/* ---------- Filter bar — Type → Roast → Region → Process → Varietal → Note → Sort ---------- */}
-      <div className="bg-white rounded-xl border border-amber-100 p-3 mb-4 flex items-center gap-2 flex-wrap">
+      {/* ---------- Filter bar — Type → Roast → Region → Process → Varietal → Elevation → Price → Note ---------- */}
+      {/* Sort is intentionally NOT in this group — it lives in its own
+          right-aligned slot below so it reads as a sort, not a filter. */}
+      <div className="bg-white rounded-xl border border-amber-100 p-3 mb-4">
+       <div className="flex items-center gap-2 flex-wrap">
         <FilterDropdown
           label="Type"
           value={filters.blend}
@@ -392,27 +420,18 @@ export default function BeansPage() {
           onPick={(v) => setFilter('elevation', v)}
         />
         <FilterDropdown
+          label="Price ¢/g"
+          multi
+          value={filters.cpg}
+          options={cpgOptions}
+          onPick={(v) => setFilter('cpg', v)}
+        />
+        <FilterDropdown
           label="Tasting note"
           multi
           value={filters.note}
           options={noteOptions}
           onPick={(v) => setFilter('note', v)}
-        />
-        <FilterDropdown
-          label="Sort"
-          value={sort}
-          options={SORT_OPTIONS}
-          onPick={(v) => {
-            const next = v || 'cpg-asc';
-            setFilter('sort', next);
-            // Picking "Nearest" without a known location triggers the
-            // browser's GPS prompt. We try once per session — if denied,
-            // the sort silently falls through to fixed-position ties.
-            if (next === 'distance-asc' && !location && !gpsRequested) {
-              setGpsRequested(true);
-              requestPreciseLocation().catch(() => {});
-            }
-          }}
         />
         <label htmlFor="beans-search" className="sr-only">
           Search beans, roasters, origins, and tasting notes
@@ -436,6 +455,31 @@ export default function BeansPage() {
           />
           Show historical
         </label>
+       </div>
+
+       {/* ---------- Sort — own slot, right-aligned, visually distinct from
+            the filter group above so users can find price-per-gram sorting
+            at a glance. Divider + "Sort by" label signal it's a sort, not
+            a filter; the dropdown button shows the active sort by name. ---------- */}
+       <div className="mt-3 pt-3 border-t border-amber-100 flex items-center justify-end gap-2">
+         <span className="text-sm text-amber-700 font-semibold" aria-hidden="true">↕</span>
+         <FilterDropdown
+           label="Sort"
+           value={sort}
+           options={SORT_OPTIONS}
+           onPick={(v) => {
+             const next = v || 'cpg-asc';
+             setFilter('sort', next);
+             // Picking "Nearest" without a known location triggers the
+             // browser's GPS prompt. We try once per session — if denied,
+             // the sort silently falls through to fixed-position ties.
+             if (next === 'distance-asc' && !location && !gpsRequested) {
+               setGpsRequested(true);
+               requestPreciseLocation().catch(() => {});
+             }
+           }}
+         />
+       </div>
       </div>
 
       {/* ---------- Active filters chip row (u3) ---------- */}
@@ -581,6 +625,9 @@ function labelForValue(key, value, roasters) {
   if (key === 'blend') return value === 'single-origin' ? 'Single Origin' : 'Blend';
   if (key === 'elevation') {
     return ELEVATION_TIERS.find((t) => t.value === value)?.label || value;
+  }
+  if (key === 'cpg') {
+    return CPG_TIERS.find((t) => t.value === value)?.label || value;
   }
   // Process / Roast / Varietal / Tasting note — stored lowercase, displayed
   // title-case to match the dropdown rendering.

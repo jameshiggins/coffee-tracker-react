@@ -5,6 +5,8 @@ import {
   MULTI_KEYS,
   BOOLEAN_KEYS,
   parseList,
+  CPG_TIERS,
+  cpgTier,
 } from './beanFilters.js';
 
 /**
@@ -59,5 +61,37 @@ describe('parseList', () => {
   });
   it('drops empty fragments', () => {
     expect(parseList(',foo,,bar,')).toEqual(['foo', 'bar']);
+  });
+});
+
+describe('cpgTier', () => {
+  it('returns null for null/0/undefined (no priceable variant)', () => {
+    expect(cpgTier(null)).toBe(null);
+    expect(cpgTier(undefined)).toBe(null);
+    expect(cpgTier(0)).toBe(null);
+  });
+
+  it('buckets each tier at its boundaries (lower-inclusive, upper-exclusive)', () => {
+    // <6¢/g
+    expect(cpgTier(0.01)).toBe('lt6');
+    expect(cpgTier(5.9)).toBe('lt6');
+    // 6–8¢/g — 6 is the lower edge of this tier, not the top of lt6
+    expect(cpgTier(6)).toBe('6-8');
+    expect(cpgTier(7.99)).toBe('6-8');
+    // 8–10¢/g
+    expect(cpgTier(8)).toBe('8-10');
+    expect(cpgTier(9.99)).toBe('8-10');
+    // 10¢+/g — open-ended top tier
+    expect(cpgTier(10)).toBe('gte10');
+    expect(cpgTier(25)).toBe('gte10');
+  });
+
+  it('every CPG_TIERS value is reachable via cpgTier', () => {
+    const produced = new Set([
+      cpgTier(5.9), cpgTier(6), cpgTier(8), cpgTier(10),
+    ]);
+    for (const t of CPG_TIERS) {
+      expect(produced.has(t.value), `tier "${t.value}" never produced`).toBe(true);
+    }
   });
 });

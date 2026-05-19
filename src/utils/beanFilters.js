@@ -21,6 +21,7 @@ export const ALL_FILTER_KEYS = [
   'varietal',   // bourbon/caturra/geisha/etc. (multi)
   'note',       // tasting note keyword (multi, AND across selected)
   'elevation',  // tier: low/medium/high/very-high (multi)
+  'cpg',        // tier: lt6/6-8/8-10/gte10 ¢/g (multi)
   'blend',      // 'single-origin' | 'blend'
   'roaster',    // roaster slug
 ];
@@ -33,11 +34,12 @@ export const LABELS = {
   varietal: 'Varietal',
   note: 'Tasting note',
   elevation: 'Elevation',
+  cpg: 'Price ¢/g',
   blend: 'Type',
   roaster: 'Roaster',
 };
 
-export const MULTI_KEYS = new Set(['country', 'process', 'roast', 'varietal', 'note', 'elevation']);
+export const MULTI_KEYS = new Set(['country', 'process', 'roast', 'varietal', 'note', 'elevation', 'cpg']);
 
 // No boolean toggles right now (Has-tasting-notes was removed). Keeping
 // the set + the BOOLEAN_KEYS render path in BeansPage so the next one
@@ -63,6 +65,33 @@ export function elevationTier(meters) {
   if (meters == null || meters <= 0) return null;
   for (const t of ELEVATION_TIERS) {
     if (meters >= t.min && meters < t.max) return t.value;
+  }
+  return null;
+}
+
+/**
+ * Bucket a cents-per-gram price into a coarse tier. Boundaries chosen to
+ * split the Canadian specialty market roughly into quartiles: budget
+ * roasters land sub-6¢/g, mainstream specialty is 6–8¢/g, premium /
+ * micro-lot is 8–10¢/g, and Geisha / competition lots run 10¢/g+.
+ *
+ * NOTE: callers pass the bean's canonical ¢/g from cheapestCpg() (the
+ * reference-variant price closest to 454 g) so this filter agrees with
+ * the "Cheapest ¢/g" sort and the card prices.
+ */
+// Labels kept short (no decimals, "¢/g" suffix) so they don't wrap in
+// the ~220px filter dropdown / active-filter chips.
+export const CPG_TIERS = [
+  { value: 'lt6',   label: '<6¢/g',   min: 0,  max: 6 },
+  { value: '6-8',   label: '6–8¢/g',  min: 6,  max: 8 },
+  { value: '8-10',  label: '8–10¢/g', min: 8,  max: 10 },
+  { value: 'gte10', label: '10¢+/g',  min: 10, max: Infinity },
+];
+
+export function cpgTier(cpg) {
+  if (cpg == null || cpg <= 0) return null;
+  for (const t of CPG_TIERS) {
+    if (cpg >= t.min && cpg < t.max) return t.value;
   }
   return null;
 }
