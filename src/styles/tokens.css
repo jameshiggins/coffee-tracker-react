@@ -1,0 +1,48 @@
+/*
+ * Design tokens — semantic colors as CSS variables.
+ *
+ * The Tailwind config references these via theme.extend.colors so that
+ * primitives written against `bg-accent` / `text-fg-muted` resolve to the
+ * brand palette without baking in concrete espresso/amber shades. Swap a
+ * value here and every primitive picks it up; no component changes needed.
+ *
+ * Keep the *palette* (espresso 50–900, emerald, etc.) in tailwind.config.js
+ * so utilities like `bg-espresso-700` still work in legacy components. The
+ * variables below are the SEMANTIC layer that primitives consume.
+ *
+ * Hex values mirror the prior-art:
+ *   - Espresso 700 (#6f4732) ≈ the header gradient base (#6F4E37 ↔ #8B4513)
+ *     and the favicon body (#6f4326) — close enough for an accent token.
+ *   - Cream tints come from espresso-50/100 (warm off-white) which matches
+ *     the favicon's `#fef6e7` highlight in spirit.
+ */
+:root {
+  /* Surfaces — backgrounds in increasing emphasis */
+  --color-surface: #ffffff;
+  --color-surface-muted: #faf6f2;   /* espresso-50 */
+  --color-surface-elevated: #ffffff;
+
+  /* Foreground — text in decreasing emphasis */
+  --color-fg: #4a3024;              /* espresso-900 */
+  --color-fg-muted: #6f4732;        /* espresso-700 */
+  --color-fg-subtle: #85593a;       /* espresso-600 */
+
+  /* Borders */
+  --color-border: #f1e8de;          /* espresso-100 */
+  --color-border-strong: #e0cdb8;   /* espresso-200 */
+
+  /* Brand accent — the espresso brown that defines the product */
+  --color-accent: #6f4732;          /* espresso-700 */
+  --color-accent-hover: #5a3a2a;    /* espresso-800 */
+  --color-accent-fg: #ffffff;       /* text ON accent surfaces */
+
+  /* Status — emerald/yellow/red/sky shades that already live in the app */
+  --color-success: #047857;         /* emerald-700 */
+  --color-success-fg: #ffffff;
+  --color-warning: #b45309;         /* amber-700 */
+  --color-warning-fg: #ffffff;
+  --color-danger:  #b91c1c;         /* red-700 */
+  --color-danger-fg: #ffffff;
+  --color-info:    #0369a1;         /* sky-700 */
+  --color-info-fg: #ffffff;
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design system — Roastmap primitives</title>
+    <!--
+      Internal-only entry. Vite builds it as a second bundle so the design
+      system primitives + showcase are present in dist/ (no DCE) even though
+      no live route imports them. Open dist/_showcase.html locally during
+      a design pass to eyeball every primitive on one page.
+    -->
+  </head>
+  <body class="min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/ui/_showcaseEntry.jsx"></script>
+  </body>
+</html>
