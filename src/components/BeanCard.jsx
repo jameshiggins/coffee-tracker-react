@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
-import { formatBagWeight } from '../utils/units.js';
+import { formatBagWeight, labelContainsGrams } from '../utils/units.js';
 import { ratingToStars, formatStars } from '../utils/rating.js';
 import { splitTastingNotes } from '../utils/flavorColor.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
@@ -226,7 +226,7 @@ export default function BeanCard({
               <table className="w-full text-sm min-w-[440px]">
                 <thead>
                   <tr className="bg-amber-50 text-amber-800 text-xs uppercase tracking-wide">
-                    <th className="text-left px-2 sm:px-4 py-2">Bag</th>
+                    <th className="text-left px-2 sm:px-4 py-2">Container</th>
                     <th className="text-right px-2 sm:px-4 py-2">Price</th>
                     <th className="text-right px-2 sm:px-4 py-2">¢/g</th>
                     <th className="text-center px-2 sm:px-4 py-2">Stock</th>
@@ -240,7 +240,13 @@ export default function BeanCard({
                         {v.source_size_label ? (
                           <>
                             <span>{v.source_size_label}</span>
-                            <span className="text-amber-500 text-[11px] ml-1">({v.bag_weight_grams}g)</span>
+                            {/* Only show the parenthetical grams when the
+                                source label doesn't already include them —
+                                "100 g tin" should NOT render as
+                                "100 g tin (100g)". */}
+                            {!labelContainsGrams(v.source_size_label, v.bag_weight_grams) && (
+                              <span className="text-amber-500 text-[11px] ml-1">({v.bag_weight_grams}g)</span>
+                            )}
                           </>
                         ) : (
                           <>

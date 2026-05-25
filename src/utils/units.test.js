@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gramsToPounds, gramsToOunces, formatBagWeight, cleanPoundLabel } from './units.js';
+import { gramsToPounds, gramsToOunces, formatBagWeight, cleanPoundLabel, labelContainsGrams } from './units.js';
 
 describe('gramsToPounds', () => {
   it('converts standard sizes', () => {
@@ -72,5 +72,33 @@ describe('formatBagWeight', () => {
   it('returns dash for empty input', () => {
     expect(formatBagWeight(0)).toBe('—');
     expect(formatBagWeight(null)).toBe('—');
+  });
+});
+
+describe('labelContainsGrams', () => {
+  it('matches labels that already show the gram count', () => {
+    // Real-world: Botany Rd source_size_label is "100 g tin" / "200 g bag"
+    // and we used to render "100 g tin (100g)" — redundant parenthetical.
+    expect(labelContainsGrams('100 g tin', 100)).toBe(true);
+    expect(labelContainsGrams('100g tin', 100)).toBe(true);
+    expect(labelContainsGrams('200 g bag', 200)).toBe(true);
+    expect(labelContainsGrams('100G TIN', 100)).toBe(true);          // case-insensitive
+    expect(labelContainsGrams('340 grams', 340)).toBe(true);
+    expect(labelContainsGrams('340 gram', 340)).toBe(true);
+  });
+
+  it('does not match when grams are absent or different', () => {
+    expect(labelContainsGrams('tin', 100)).toBe(false);
+    expect(labelContainsGrams('5lb bulk bag', 2268)).toBe(false);    // imperial unit, no g
+    expect(labelContainsGrams('200 g bag', 100)).toBe(false);        // wrong number
+    expect(labelContainsGrams('Default Title', 250)).toBe(false);
+    expect(labelContainsGrams('', 100)).toBe(false);
+    expect(labelContainsGrams(null, 100)).toBe(false);
+    expect(labelContainsGrams('100 g tin', null)).toBe(false);
+  });
+
+  it('does not false-match a digit substring without a g unit', () => {
+    // "10 oz" includes "10" but not "10 g"; must not falsely match grams=10.
+    expect(labelContainsGrams('10 oz cup', 10)).toBe(false);
   });
 });

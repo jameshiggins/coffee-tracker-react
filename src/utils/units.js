@@ -57,3 +57,18 @@ export function formatBagWeight(grams) {
   if (lb) return `${grams}g · ${lb}`;
   return `${grams}g · ${gramsToOunces(grams)} oz`;
 }
+
+/**
+ * Does this source-side variant label already include the gram count?
+ * "100 g tin" + 100 → true; "Tin" + 100 → false. Used by BeanCard to
+ * avoid rendering "100 g tin (100g)" with a redundant parenthetical.
+ *
+ * Tolerates whitespace ("100 g") and casing ("100G"). Does NOT match
+ * a digit substring without a g/gram unit, so "10 oz" + 100 stays false.
+ */
+export function labelContainsGrams(label, grams) {
+  if (!label || !grams) return false;
+  // \b<grams>\s*(g|gram|grams)\b — case-insensitive.
+  const re = new RegExp(`\\b${grams}\\s*g(?:ram(?:s)?)?\\b`, 'i');
+  return re.test(label);
+}
