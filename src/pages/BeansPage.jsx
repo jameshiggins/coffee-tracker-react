@@ -610,6 +610,8 @@ const SORT_OPTIONS = [
   { value: 'cpg-desc', label: 'Most expensive ¢/g' },
   { value: 'price-asc', label: 'Lowest price' },
   { value: 'rating-desc', label: 'Highest rated' },
+  { value: 'elevation-desc', label: 'Elevation: highest first' },
+  { value: 'elevation-asc', label: 'Elevation: lowest first' },
   { value: 'name-asc', label: 'Name A→Z' },
 ];
 
@@ -625,6 +627,11 @@ function buildSortFn(sort, location) {
       return (a, b) => (cheapestPrice(a) ?? Infinity) - (cheapestPrice(b) ?? Infinity);
     case 'rating-desc':
       return (a, b) => (b.rating?.average ?? -1) - (a.rating?.average ?? -1);
+    case 'elevation-desc':
+      // Beans without elevation sink to the bottom either way.
+      return (a, b) => (b.elevation_meters ?? -Infinity) - (a.elevation_meters ?? -Infinity);
+    case 'elevation-asc':
+      return (a, b) => (a.elevation_meters ?? Infinity) - (b.elevation_meters ?? Infinity);
     case 'name-asc':
       return (a, b) => (a.name || '').localeCompare(b.name || '');
     case 'cpg-asc':
