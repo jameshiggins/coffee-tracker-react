@@ -77,25 +77,31 @@ export default function MapPage() {
     r.region === selectedRegion ||
     provinceCodeForName(r.region) === selectedRegion;
 
-  // Markers: roasters that ship + match region + have coordinates.
+  // Markers: roasters that ship + match region + have coordinates + are
+  // NOT online-only. The AddressScraper cascade flags is_online_only=true
+  // when no physical street address resolved — those shops have no
+  // storefront to pin. They keep full presence in /beans and /roasters
+  // (D4); they just don't get a marker that would otherwise stack on a
+  // city centroid and lie about location.
   const visibleRoasters = useMemo(() => {
     if (!roasters) return [];
     return roasters
       .filter((r) => r.has_shipping)
       .filter(matchesRegion)
-      .filter((r) => r.latitude != null && r.longitude != null);
+      .filter((r) => r.latitude != null && r.longitude != null)
+      .filter((r) => !r.is_online_only);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roasters, selectedRegion]);
 
-  // The "+ N not on map" pill counts roasters that match the region
-  // filter but lack coordinates — we surface them with a link to the
-  // grid so users don't think the directory is incomplete.
+  // The "+ N not on map" pill counts roasters in this region that aren't
+  // pinned — either lacking coordinates OR explicitly online-only —
+  // linked to the grid so users see the full directory.
   const notOnMapCount = useMemo(() => {
     if (!roasters) return 0;
     return roasters
       .filter((r) => r.has_shipping)
       .filter(matchesRegion)
-      .filter((r) => r.latitude == null || r.longitude == null)
+      .filter((r) => r.latitude == null || r.longitude == null || r.is_online_only)
       .length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roasters, selectedRegion]);
