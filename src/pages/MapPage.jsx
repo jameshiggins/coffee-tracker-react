@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+// markercluster's own CSS — needed for the spider-leg lines that
+// radiate from a cluster at max zoom when markers overlap. Our
+// `createClusterIcon` overrides the default-blue bubble styling
+// inline (so we don't import MarkerCluster.Default.css).
+import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { Link } from 'react-router-dom';
-// NOTE: react-leaflet-cluster@4 wants @react-leaflet/core@^3, but we're on
-// react-leaflet@4 which provides core@^2. The peer mismatch causes the
-// cluster wrapper to silently render no children. With 63 roasters,
-// clustering isn't needed for performance — markers render fine at country
-// zoom without it. Add clustering back via react-leaflet-cluster@2.x when
-// we revisit. Tracked: see TODO list.
 
 import { api } from '../api.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
@@ -20,6 +20,7 @@ import {
   provinceCodeForName,
 } from '../utils/provinceBounds.js';
 import { beanIcon } from '../components/MapMarkerIcon.jsx';
+import { createClusterIcon } from '../components/MapClusterIcon.jsx';
 import MapPopupCard from '../components/MapPopupCard.jsx';
 
 const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
@@ -224,26 +225,40 @@ export default function MapPage() {
         >
           <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
           <MapBoundsController targetBounds={targetBounds} />
-          {visibleRoasters.map((r) => {
-            const inStockCount = (r.coffees || []).filter(isCoffeeInStock).length;
-            // Per-roaster rotation so markers don't all face the same way.
-            const rotation = -50 + ((r.id * 17) % 50);
-            return (
-              <Marker
-                key={r.id}
-                position={[r.latitude, r.longitude]}
-                icon={beanIcon({ active: r.id === activeRoasterId, rotation })}
-                eventHandlers={{
-                  popupopen: () => setActiveRoasterId(r.id),
-                  popupclose: () => setActiveRoasterId(null),
-                }}
-              >
-                <Popup minWidth={240} maxWidth={280} closeButton autoPan>
-                  <MapPopupCard roaster={r} inStockCount={inStockCount} />
-                </Popup>
-              </Marker>
-            );
-          })}
+          {/* Cluster nearby markers into a count badge — at country/province
+              zoom the BC coast collapses to one ~30-shop cluster; zooming
+              in splits it into city-level clusters; further zoom shows
+              individual bean markers. iconCreateFunction returns our
+              brand-styled brown bubble (see MapClusterIcon.jsx) instead
+              of the library's default blue. */}
+          <MarkerClusterGroup
+            iconCreateFunction={createClusterIcon}
+            chunkedLoading
+            spiderfyOnMaxZoom
+            showCoverageOnHover={false}
+            maxClusterRadius={50}
+          >
+            {visibleRoasters.map((r) => {
+              const inStockCount = (r.coffees || []).filter(isCoffeeInStock).length;
+              // Per-roaster rotation so markers don't all face the same way.
+              const rotation = -50 + ((r.id * 17) % 50);
+              return (
+                <Marker
+                  key={r.id}
+                  position={[r.latitude, r.longitude]}
+                  icon={beanIcon({ active: r.id === activeRoasterId, rotation })}
+                  eventHandlers={{
+                    popupopen: () => setActiveRoasterId(r.id),
+                    popupclose: () => setActiveRoasterId(null),
+                  }}
+                >
+                  <Popup minWidth={240} maxWidth={280} closeButton autoPan>
+                    <MapPopupCard roaster={r} inStockCount={inStockCount} />
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MarkerClusterGroup>
         </MapContainer>
       </div>
     </div>
