@@ -412,8 +412,14 @@ export default function BeansPage() {
        </div>
 
        <div className={`${mobileFiltersOpen ? 'flex' : 'hidden'} sm:flex items-center gap-2 flex-wrap mt-3 sm:mt-0`}>
+        {/* Tones below intentionally match the chip palette on BeanCard so
+            the dropdown for "Region" reads in the same blue as the Origin
+            chip the user clicks on a card, "Process" matches the amber
+            process chip, etc. Type uses emerald (Single Origin) since
+            that's the more common default; cyan would also fit Blend. */}
         <FilterDropdown
           label="Type"
+          tone="emerald"
           value={filters.blend}
           options={[
             { value: 'single-origin', label: 'Single Origin' },
@@ -429,6 +435,7 @@ export default function BeansPage() {
         />
         <FilterDropdown
           label="Roast"
+          tone="rose"
           multi
           value={filters.roast}
           options={roastOptions}
@@ -436,6 +443,7 @@ export default function BeansPage() {
         />
         <FilterDropdown
           label="Region"
+          tone="sky"
           multi
           value={filters.country}
           options={originOptions}
@@ -443,6 +451,7 @@ export default function BeansPage() {
         />
         <FilterDropdown
           label="Process"
+          tone="amber"
           multi
           value={filters.process}
           options={processOptions}
@@ -450,6 +459,7 @@ export default function BeansPage() {
         />
         <FilterDropdown
           label="Varietal"
+          tone="stone"
           multi
           value={filters.varietal}
           options={varietalOptions}
@@ -457,6 +467,7 @@ export default function BeansPage() {
         />
         <FilterDropdown
           label="Elevation"
+          tone="violet"
           multi
           value={filters.elevation}
           options={elevationOptions}
