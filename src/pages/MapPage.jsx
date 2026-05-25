@@ -1,26 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Link } from 'react-router-dom';
-// NOTE: react-leaflet-cluster@4 wants @react-leaflet/core@^3, but we're on
-// react-leaflet@4 which provides core@^2. The peer mismatch causes the
-// cluster wrapper to silently render no children. With 63 roasters,
-// clustering isn't needed for performance — markers render fine at country
-// zoom without it. Add clustering back via react-leaflet-cluster@2.x when
-// we revisit. Tracked: see TODO list.
 
 import { api } from '../api.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
-import { isCoffeeInStock } from '../utils/stock.js';
 import {
   PROVINCE_BOUNDS,
   CANADA_BOUNDS,
   provinceForLatLng,
   provinceCodeForName,
 } from '../utils/provinceBounds.js';
-import { beanIcon } from '../components/MapMarkerIcon.jsx';
-import MapPopupCard from '../components/MapPopupCard.jsx';
+import ClusterLayer from '../components/ClusterLayer.jsx';
 
 const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 const TILE_ATTR =
@@ -44,7 +36,6 @@ export default function MapPage() {
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null);
-  const [activeRoasterId, setActiveRoasterId] = useState(null);
 
   useEffect(() => {
     api.listRoasters()
@@ -224,26 +215,13 @@ export default function MapPage() {
         >
           <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
           <MapBoundsController targetBounds={targetBounds} />
-          {visibleRoasters.map((r) => {
-            const inStockCount = (r.coffees || []).filter(isCoffeeInStock).length;
-            // Per-roaster rotation so markers don't all face the same way.
-            const rotation = -50 + ((r.id * 17) % 50);
-            return (
-              <Marker
-                key={r.id}
-                position={[r.latitude, r.longitude]}
-                icon={beanIcon({ active: r.id === activeRoasterId, rotation })}
-                eventHandlers={{
-                  popupopen: () => setActiveRoasterId(r.id),
-                  popupclose: () => setActiveRoasterId(null),
-                }}
-              >
-                <Popup minWidth={240} maxWidth={280} closeButton autoPan>
-                  <MapPopupCard roaster={r} inStockCount={inStockCount} />
-                </Popup>
-              </Marker>
-            );
-          })}
+          {/* Cluster nearby markers into a brand-styled count bubble. The
+              imperative ClusterLayer component handles marker creation,
+              cluster grouping, and popup HTML rendering directly against
+              leaflet.markercluster — the React wrappers (react-leaflet-
+              cluster v2 AND v4) silently rendered no children in this
+              codebase's peer-dep combination. */}
+          <ClusterLayer markers={visibleRoasters} />
         </MapContainer>
       </div>
     </div>
