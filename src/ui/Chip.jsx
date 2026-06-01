@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { cn } from './cn.js';
+import { TONE_TRIOS } from './tones.js';
 
 /**
  * Chip — small interactive (or static) tag.
@@ -28,18 +29,8 @@ import { cn } from './cn.js';
  * Optional `count` renders subtle text inside the chip, e.g. for "5"
  * appended to a category filter.
  */
-const TONES = {
-  amber:   'bg-amber-50 text-amber-700 border-amber-200',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  cyan:    'bg-cyan-50 text-cyan-700 border-cyan-200',
-  sky:     'bg-sky-50 text-sky-700 border-sky-200',
-  stone:   'bg-stone-50 text-stone-700 border-stone-200',
-  yellow:  'bg-yellow-50 text-yellow-700 border-yellow-200',
-  orange:  'bg-orange-50 text-orange-700 border-orange-200',
-  red:     'bg-red-50 text-red-700 border-red-200',
-  accent:  'bg-surface-muted text-accent border-border-strong',
-  neutral: 'bg-surface-muted text-fg-muted border-border',
-};
+// Tones are centralized in ./tones.js (shared with Badge + BeanCard).
+const TONES = TONE_TRIOS;
 
 const SIZES = {
   xs: 'text-xs px-2 py-0.5 gap-1',

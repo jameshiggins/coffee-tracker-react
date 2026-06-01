@@ -1,7 +1,29 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+// Anchor content globs to THIS file's directory so Tailwind scans the right
+// source tree regardless of process.cwd(). Tailwind resolves relative `content`
+// globs against process.cwd(), which silently yields zero utilities when a tool
+// launches vite from another directory (e.g. the sibling Laravel repo's preview
+// runner). The relative globs below remain for the normal `npm run dev`/build
+// path; the absolute, forward-slash-normalized ones are an additive fallback.
+const here = dirname(fileURLToPath(import.meta.url));
+const fromHere = (p) => resolve(here, p).replace(/\\/g, '/');
+
 /** @type {import('tailwindcss').Config} */
 export default {
   // Scan all source + the entry HTML so JIT picks up every class we use.
-  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  content: [
+    './index.html',
+    './src/**/*.{js,jsx,ts,tsx}',
+    fromHere('index.html'),
+    fromHere('src/**/*.{js,jsx,ts,tsx}'),
+  ],
+  // Class-based dark mode: a `.dark` on <html> flips every semantic token
+  // (defined in src/styles/tokens.css) and every `dark:` variant. The toggle
+  // lives in the header; useTheme persists the choice and respects the OS
+  // preference on first load.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

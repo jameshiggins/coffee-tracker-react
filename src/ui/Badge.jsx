@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { cn } from './cn.js';
+import { TONE_TRIOS } from './tones.js';
 
 /**
  * Badge — small NON-interactive status pill.
@@ -16,22 +17,8 @@ import { cn } from './cn.js';
  *
  * Tones mirror Chip exactly so the system stays coherent.
  */
-const TONES = {
-  amber:   'bg-amber-50 text-amber-700 border-amber-200',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  cyan:    'bg-cyan-50 text-cyan-700 border-cyan-200',
-  sky:     'bg-sky-50 text-sky-700 border-sky-200',
-  stone:   'bg-stone-50 text-stone-700 border-stone-200',
-  yellow:  'bg-yellow-50 text-yellow-700 border-yellow-200',
-  orange:  'bg-orange-50 text-orange-700 border-orange-200',
-  red:     'bg-red-50 text-red-700 border-red-200',
-  accent:  'bg-surface-muted text-accent border-border-strong',
-  neutral: 'bg-surface-muted text-fg-muted border-border',
-  success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  warning: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  danger:  'bg-red-50 text-red-700 border-red-200',
-  info:    'bg-sky-50 text-sky-700 border-sky-200',
-};
+// Tones are centralized in ./tones.js (shared with Chip + BeanCard).
+const TONES = TONE_TRIOS;
 
 const BASE =
   'inline-flex items-center rounded border ' +

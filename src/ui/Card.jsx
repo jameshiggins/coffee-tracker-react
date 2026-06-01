@@ -15,7 +15,7 @@ import { cn } from './cn.js';
  * spans the card with its own background).
  *
  * Mirrors the live pattern `bg-white rounded-xl border border-amber-100
- * shadow-sm` used across BeanCard, RoasterMap popups, and most list cards.
+ * shadow-sm` used across BeanCard, map popups, and most list cards.
  * The Tailwind compile expands `bg-surface` → white via the CSS variable.
  */
 const VARIANTS = {

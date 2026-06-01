@@ -45,4 +45,56 @@
   --color-danger-fg: #ffffff;
   --color-info:    #0369a1;         /* sky-700 */
   --color-info-fg: #ffffff;
+
+  /* Page frame — the matte behind the boxed app card on desktop. Light mode
+     swaps the old orange spill (#8B4513→#D2691E) for a calm deep-espresso
+     gradient that complements the brown header instead of clashing with it. */
+  --page-bg: linear-gradient(160deg, #5a3a2a 0%, #3e2a20 100%);
+  --page-bg-solid: #4a3024;          /* FOUC / fallback color */
+}
+
+/*
+ * Dark theme — flip every semantic token. Because primitives and the migrated
+ * surfaces consume ONLY these tokens (bg-surface, text-fg, border-border,
+ * bg-accent…), adding `.dark` to <html> re-skins the whole app. The accent
+ * becomes a light caramel with DARK text-on-accent so primary buttons keep
+ * AA contrast (white-on-brown would fail on a dark surface).
+ */
+.dark {
+  --color-surface: #1c1614;          /* deep warm near-black (the card) */
+  --color-surface-muted: #241c18;    /* one step up — chips, table headers */
+  --color-surface-elevated: #2a211c; /* popovers, modals, dropdowns */
+
+  --color-fg: #f3e9df;               /* warm off-white — primary text */
+  --color-fg-muted: #cbb6a3;         /* warm gray — secondary text */
+  --color-fg-subtle: #9c8775;        /* dim warm — faint/placeholder text */
+
+  --color-border: #352a23;           /* subtle warm hairline */
+  --color-border-strong: #463a30;    /* stronger divider/border */
+
+  --color-accent: #d8a873;           /* light caramel — pops on dark */
+  --color-accent-hover: #e6b98a;
+  --color-accent-fg: #2a1c12;        /* espresso-dark text ON the caramel */
+
+  --color-success: #059669;          /* emerald-600 */
+  --color-success-fg: #ffffff;
+  --color-warning: #d97706;          /* amber-600 */
+  --color-warning-fg: #ffffff;
+  --color-danger:  #dc2626;          /* red-600 */
+  --color-danger-fg: #ffffff;
+  --color-info:    #0284c7;          /* sky-600 */
+  --color-info-fg: #ffffff;
+
+  --page-bg: linear-gradient(160deg, #15100d 0%, #0c0908 100%);
+  --page-bg-solid: #0d0a08;
+}
+
+/* Page frame applied to the document root + body so there's no white gutter
+   around the boxed card on desktop, in either theme. background-image carries
+   the gradient; background-color is the flash-of-unstyled fallback. */
+html, body {
+  min-height: 100%;
+  background-color: var(--page-bg-solid);
+  background-image: var(--page-bg);
+  background-attachment: fixed;
 }
