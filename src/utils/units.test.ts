@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { gramsToPounds, gramsToOunces, formatBagWeight, cleanPoundLabel, labelContainsGrams } from './units.js';
+import {
+  gramsToPounds,
+  gramsToOunces,
+  formatBagWeight,
+  cleanPoundLabel,
+  labelContainsGrams,
+} from './units';
 
 describe('gramsToPounds', () => {
   it('converts standard sizes', () => {

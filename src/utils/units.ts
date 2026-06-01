@@ -2,14 +2,19 @@
 const G_PER_LB = 453.592;
 const G_PER_OZ = 28.3495;
 
-export function gramsToPounds(grams) {
+export function gramsToPounds(grams: number | null | undefined): number {
   if (!grams || grams <= 0) return 0;
   return Math.round((grams / G_PER_LB) * 100) / 100;
 }
 
-export function gramsToOunces(grams) {
+export function gramsToOunces(grams: number | null | undefined): number {
   if (!grams || grams <= 0) return 0;
   return Math.round((grams / G_PER_OZ) * 10) / 10;
+}
+
+interface CleanLbSize {
+  grams: number;
+  label: string;
 }
 
 /**
@@ -22,7 +27,7 @@ export function gramsToOunces(grams) {
  * ambiguity (49th Parallel's 10.6 oz happens to land at 2/3 lb but they
  * call it 10.6 oz, so the oz display matches their own label).
  */
-const CLEAN_LB_SIZES = [
+const CLEAN_LB_SIZES: CleanLbSize[] = [
   { grams: 113, label: '¼ lb' },
   { grams: 151, label: '⅓ lb' },
   { grams: 227, label: '½ lb' },
@@ -31,10 +36,10 @@ const CLEAN_LB_SIZES = [
   { grams: 907, label: '2 lb' },
   { grams: 2268, label: '5 lb' },
 ];
-const LB_MATCH_TOLERANCE_G = 5;  // accept 339-345g as "¾ lb", etc.
+const LB_MATCH_TOLERANCE_G = 5; // accept 339-345g as "¾ lb", etc.
 
 /** Return the matching clean-lb label for this gram count, or null. */
-export function cleanPoundLabel(grams) {
+export function cleanPoundLabel(grams: number | null | undefined): string | null {
   if (!grams || grams <= 0) return null;
   const hit = CLEAN_LB_SIZES.find((s) => Math.abs(s.grams - grams) <= LB_MATCH_TOLERANCE_G);
   return hit ? hit.label : null;
@@ -51,7 +56,7 @@ export function cleanPoundLabel(grams) {
  *   301g  → "301g · 10.6 oz"   (49th Parallel's signature size)
  *   1000g → "1000g · 35.3 oz"  (1 kg, no clean lb match)
  */
-export function formatBagWeight(grams) {
+export function formatBagWeight(grams: number | null | undefined): string {
   if (!grams || grams <= 0) return '—';
   const lb = cleanPoundLabel(grams);
   if (lb) return `${grams}g · ${lb}`;
@@ -66,7 +71,10 @@ export function formatBagWeight(grams) {
  * Tolerates whitespace ("100 g") and casing ("100G"). Does NOT match
  * a digit substring without a g/gram unit, so "10 oz" + 100 stays false.
  */
-export function labelContainsGrams(label, grams) {
+export function labelContainsGrams(
+  label: string | null | undefined,
+  grams: number | null | undefined,
+): boolean {
   if (!label || !grams) return false;
   // \b<grams>\s*(g|gram|grams)\b — case-insensitive.
   const re = new RegExp(`\\b${grams}\\s*g(?:ram(?:s)?)?\\b`, 'i');
