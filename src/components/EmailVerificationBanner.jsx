@@ -20,16 +20,16 @@ export default function EmailVerificationBanner() {
   }
 
   return (
-    <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-900 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap">
+    <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-900 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap dark:bg-yellow-500/10 dark:text-yellow-300 dark:border-yellow-500/30">
       <span>
         ⚠️ <strong>Verify your email</strong> — we sent a link to{' '}
-        <code className="bg-yellow-100 px-1 rounded">{user.email}</code>.
+        <code className="bg-yellow-100 px-1 rounded dark:bg-yellow-500/20">{user.email}</code>.
         Restock alerts won't fire until you verify.
       </span>
       <button
         onClick={resend}
         disabled={status === 'sending' || status === 'sent'}
-        className="bg-yellow-800 hover:bg-yellow-900 disabled:opacity-50 text-white text-xs px-3 py-1 rounded"
+        className="bg-yellow-800 hover:bg-yellow-900 disabled:opacity-50 text-white text-xs px-3 py-1 rounded dark:bg-yellow-500"
       >
         {status === 'sent' ? 'Sent ✓' : status === 'sending' ? 'Sending…' : 'Resend link'}
       </button>

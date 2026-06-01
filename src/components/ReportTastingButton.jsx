@@ -19,17 +19,17 @@ export default function ReportTastingButton({ tastingId }) {
   }
 
   if (state === 'done') {
-    return <span className="text-xs text-amber-600">Reported · thanks</span>;
+    return <span className="text-xs text-fg-muted">Reported · thanks</span>;
   }
   if (state === 'error') {
-    return <span className="text-xs text-red-600">Couldn’t report</span>;
+    return <span className="text-xs text-red-600 dark:text-red-400">Couldn’t report</span>;
   }
 
   return (
     <button
       onClick={onClick}
       disabled={state === 'sending'}
-      className="text-xs text-amber-500 hover:text-red-700 underline disabled:opacity-50"
+      className="text-xs text-fg-subtle hover:text-red-700 dark:hover:text-red-400 underline disabled:opacity-50"
       title="Report this tasting for review"
     >
       {state === 'sending' ? 'Reporting…' : 'Report'}

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import '../styles/leaflet-overrides.css'; // mobile#6: must load AFTER leaflet.css
 import { Link } from 'react-router-dom';
 
 import { api } from '../api.js';
+import { useSeo } from '../hooks/useSeo.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
 import {
   PROVINCE_BOUNDS,
@@ -32,6 +34,10 @@ function MapBoundsController({ targetBounds }) {
 }
 
 export default function MapPage() {
+  useSeo({
+    description:
+      'Explore an interactive map of Canadian specialty-coffee roasters. Find micro-roasters near you and discover who ships beans to your door.',
+  });
   const { location } = useUserLocation();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
@@ -122,17 +128,20 @@ export default function MapPage() {
 
   if (error) {
     return (
-      <div className="p-10 text-center text-red-700">
-        <h3 className="font-bold mb-2">Failed to load</h3>
-        <p className="text-sm">{error}</p>
-        <p className="text-xs text-gray-600 mt-3">
-          Make sure the API is reachable at {import.meta.env.VITE_API_BASE || 'localhost:8000'}.
-        </p>
+      <div className="p-10 text-center text-red-700 dark:text-red-400">
+        <h3 className="font-bold mb-2">We couldn't load the map</h3>
+        <p className="text-sm text-fg-muted">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover transition-colors"
+        >
+          Try again
+        </button>
       </div>
     );
   }
   if (!roasters) {
-    return <div className="p-10 text-center text-amber-800">Loading map…</div>;
+    return <div className="p-10 text-center text-fg-muted">Loading map…</div>;
   }
 
   const selectedRegionLabel = selectedRegion
@@ -148,8 +157,78 @@ export default function MapPage() {
     <div
       className="block md:flex md:flex-row md:h-[calc(100vh-280px)] md:min-h-[480px]"
     >
+      {/* a11y#7: the visible page title is a wordmark in the shared header, so
+          give the page one programmatic <h1> for the heading outline. */}
+      <h1 className="sr-only">Map of Canadian specialty coffee roasters</h1>
+
+      {/* content#7: announce the count for the current region as filters change. */}
+      <p className="sr-only" aria-live="polite" role="status">
+        Showing {visibleRoasters.length}{' '}
+        {visibleRoasters.length === 1 ? 'roaster' : 'roasters'} on the map in{' '}
+        {selectedRegionLabel}
+        {notOnMapCount > 0
+          ? `, plus ${notOnMapCount} not shown on the map`
+          : ''}
+        .
+      </p>
+
+      {/* a11y#3: Leaflet markers aren't reachable by keyboard and aren't
+          announced by screen readers, so expose the same pins as a visually
+          hidden, fully navigable parallel list (each links to the roaster's
+          beans, mirroring the map popup). */}
+      <nav className="sr-only" aria-label={`Roasters pinned on the map in ${selectedRegionLabel}`}>
+        {visibleRoasters.length === 0 ? (
+          <p>No roasters with map locations match this region yet.</p>
+        ) : (
+          <ul>
+            {visibleRoasters.map((r) => {
+              const place = [r.city, r.region].filter(Boolean).join(', ');
+              return (
+                <li key={r.id}>
+                  <Link to={`/beans?roaster=${r.slug}`}>
+                    {r.name}
+                    {place ? ` — ${place}` : ''}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {notOnMapCount > 0 && (
+          <Link to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}>
+            View {notOnMapCount} more {notOnMapCount === 1 ? 'roaster' : 'roasters'} not shown on the map
+          </Link>
+        )}
+      </nav>
+
+      {/* ---- mobile#2: Map / List segmented toggle ----
+           The directory's list view lives at /roasters; on a phone this is a
+           one-tap switch between the two browse surfaces (map is the hero here,
+           the table is the hero there). Hidden at md:+ where the sidebar and
+           the full grid are both reachable without it. */}
+      <nav
+        aria-label="Map or list view"
+        className="md:hidden px-4 pt-3 pb-2 bg-surface-muted border-b border-border"
+      >
+        <div className="flex w-full rounded-lg border border-border bg-surface p-1 gap-1">
+          <Link
+            to="/"
+            aria-current="page"
+            className="flex-1 text-center text-sm font-semibold px-3 py-2.5 min-h-[44px] rounded-md bg-accent text-accent-fg inline-flex items-center justify-center gap-1.5"
+          >
+            <span aria-hidden="true">🗺️</span> Map
+          </Link>
+          <Link
+            to="/roasters"
+            className="flex-1 text-center text-sm font-semibold px-3 py-2.5 min-h-[44px] rounded-md text-fg-muted hover:bg-surface-muted inline-flex items-center justify-center gap-1.5"
+          >
+            <span aria-hidden="true">📋</span> List
+          </Link>
+        </div>
+      </nav>
+
       {/* ---- Mobile: collapsible province disclosure ---- */}
-      <div className="md:hidden border-b border-amber-100 bg-amber-50/40">
+      <div className="md:hidden border-b border-border bg-surface-muted">
         <MobileProvincePicker
           selectedLabel={selectedRegionLabel}
           allShippingCount={allShippingCount}
@@ -161,8 +240,8 @@ export default function MapPage() {
       </div>
 
       {/* ---- Desktop: static sidebar (unchanged) ---- */}
-      <aside className="hidden md:block md:w-56 md:border-r border-amber-100 p-4 overflow-y-auto bg-amber-50/30 shrink-0">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
+      <aside className="hidden md:block md:w-56 md:border-r border-border p-4 overflow-y-auto bg-surface-muted shrink-0">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-fg-muted mb-3">
           Province
         </h3>
         <div className="flex flex-col gap-1">
@@ -184,19 +263,23 @@ export default function MapPage() {
         </div>
 
         {notOnMapCount > 0 && (
-          <Link
-            to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}
-            className="mt-4 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full
-                       bg-amber-100 text-amber-800 text-xs font-medium
-                       hover:bg-amber-200 transition-colors"
-            title="Some roasters in this region don't have a precise location yet — view them in the grid."
-          >
-            +{notOnMapCount} not on map
-          </Link>
+          <div className="mt-4">
+            <Link
+              to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full
+                         bg-accent/10 text-fg text-xs font-medium
+                         hover:bg-accent/20 transition-colors"
+            >
+              +{notOnMapCount} not on map
+            </Link>
+            <p className="mt-1.5 text-[11px] leading-snug text-fg-muted">
+              These roasters aren't shown on the map. See them all in the grid.
+            </p>
+          </div>
         )}
 
         {visibleRoasters.length === 0 && (
-          <p className="mt-6 text-xs text-amber-700/80">
+          <p className="mt-6 text-xs text-fg-muted">
             No roasters with map locations match this region yet.
           </p>
         )}
@@ -223,6 +306,28 @@ export default function MapPage() {
               codebase's peer-dep combination. */}
           <ClusterLayer markers={visibleRoasters} />
         </MapContainer>
+
+        {/* ux#1: first-visit orientation. Pins/clusters aren't self-evidently
+            interactive, so a dismissible callout explains the gesture. Persisted
+            in localStorage so it shows once, then stays gone. */}
+        <MapOnboardingCallout />
+
+        {/* ux#7: the sidebar already lists the "+N not on map" pill, but on a
+            phone it's buried in the collapsed province disclosure and on
+            desktop it competes with the province list. Surface it AS an overlay
+            on the map itself so the off-map roasters are always one tap away. */}
+        {notOnMapCount > 0 && (
+          <Link
+            to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}
+            className="absolute bottom-4 left-4 z-[1000] inline-flex items-center gap-1.5
+                       px-3.5 py-2 rounded-full bg-surface/95 backdrop-blur
+                       border border-border-strong shadow-lg text-fg text-xs font-semibold
+                       hover:bg-surface transition-colors"
+          >
+            <span aria-hidden="true">📋</span>
+            +{notOnMapCount} {notOnMapCount === 1 ? 'roaster' : 'roasters'} not on map
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -256,15 +361,15 @@ function MobileProvincePicker({
         aria-expanded={open}
         className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
       >
-        <span className="text-sm text-amber-900">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
+        <span className="text-sm text-fg">
+          <span className="text-xs font-bold uppercase tracking-wider text-fg-muted">
             Province
           </span>
-          <span className="mx-2 text-amber-300">·</span>
+          <span className="mx-2 text-fg-subtle">·</span>
           <span className="font-semibold">{selectedLabel}</span>
         </span>
         <span
-          className={`text-amber-600 text-xs transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`text-fg-muted text-xs transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
         >
           ▾
@@ -290,14 +395,19 @@ function MobileProvincePicker({
             ))}
           </div>
           {notOnMapCount > 0 && (
-            <Link
-              to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}
-              className="mt-3 inline-flex items-center gap-1 px-3 py-2 rounded-full
-                         bg-amber-100 text-amber-800 text-xs font-medium
-                         hover:bg-amber-200 transition-colors"
-            >
-              +{notOnMapCount} not on map
-            </Link>
+            <div className="mt-3">
+              <Link
+                to={`/roasters${selectedRegion ? `?region=${selectedRegion}` : ''}`}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-full
+                           bg-accent/10 text-fg text-xs font-medium
+                           hover:bg-accent/20 transition-colors"
+              >
+                +{notOnMapCount} not on map
+              </Link>
+              <p className="mt-1.5 text-[11px] leading-snug text-fg-muted">
+                Roasters not shown on the map — view them in the grid.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -311,15 +421,70 @@ function ProvincePill({ label, count, active, onClick }) {
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-full text-sm transition-colors ${
         active
-          ? 'bg-amber-800 text-white font-semibold'
-          : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
+          ? 'bg-accent text-accent-fg font-semibold'
+          : 'bg-surface border border-border text-fg hover:bg-surface-muted'
       }`}
     >
       <span>{label}</span>
-      <span className={`text-xs tabular-nums ${active ? 'text-amber-100' : 'text-amber-500'}`}>
+      <span className={`text-xs tabular-nums ${active ? 'text-accent-fg/70' : 'text-fg-subtle'}`}>
         {count}
       </span>
     </button>
+  );
+}
+
+/**
+ * ux#1: One-time map onboarding callout. Renders an overlay tip the first
+ * time someone lands on the map, explaining that pins/clusters are clickable.
+ * Dismissal is persisted in localStorage so returning visitors never see it
+ * again. Wrapped in try/catch so a blocked/unavailable localStorage (private
+ * mode, etc.) degrades to "always show" rather than throwing.
+ */
+const MAP_ONBOARDING_KEY = 'roastmap_map_onboarding_dismissed';
+
+function MapOnboardingCallout() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(MAP_ONBOARDING_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  if (dismissed) return null;
+
+  function dismiss() {
+    try {
+      localStorage.setItem(MAP_ONBOARDING_KEY, '1');
+    } catch {
+      /* ignore — non-persistent dismiss is still fine for this session */
+    }
+    setDismissed(true);
+  }
+
+  return (
+    <div
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] w-[min(92%,30rem)]
+                 bg-surface/95 backdrop-blur border border-border-strong shadow-lg
+                 rounded-xl px-4 py-3 flex items-start gap-3"
+      role="note"
+    >
+      <span aria-hidden="true" className="text-lg leading-none mt-0.5">🗺️</span>
+      <div className="flex-1 text-xs leading-relaxed">
+        <p className="font-semibold text-sm text-fg mb-0.5">Find roasters near you</p>
+        <p className="text-fg-muted">
+          Click a cluster to zoom in, or a pin to see that roaster's beans. Pick a
+          province to narrow the map.
+        </p>
+      </div>
+      <button
+        onClick={dismiss}
+        aria-label="Dismiss map tip"
+        className="text-fg-muted hover:text-fg text-lg leading-none shrink-0 -mt-0.5 px-1"
+      >
+        ×
+      </button>
+    </div>
   );
 }
 
@@ -329,12 +494,12 @@ function FilterChip({ label, count, active, onClick }) {
       onClick={onClick}
       className={`flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${
         active
-          ? 'bg-amber-800 text-white font-semibold'
-          : 'text-amber-900 hover:bg-amber-100'
+          ? 'bg-accent text-accent-fg font-semibold'
+          : 'text-fg hover:bg-surface-muted'
       }`}
     >
       <span>{label}</span>
-      <span className={`text-xs tabular-nums ${active ? 'text-amber-100' : 'text-amber-600'}`}>
+      <span className={`text-xs tabular-nums ${active ? 'text-accent-fg/70' : 'text-fg-muted'}`}>
         {count}
       </span>
     </button>

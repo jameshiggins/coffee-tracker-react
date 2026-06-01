@@ -45,14 +45,14 @@ export default function LocationChip() {
         <span className="ml-1 opacity-60 flex-shrink-0">▾</span>
       </button>
       {open && (
-        <div className="absolute left-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border border-amber-200 z-20 w-[min(16rem,calc(100vw-2rem))] py-1">
+        <div className="absolute left-0 mt-1 bg-surface-elevated text-fg rounded-lg shadow-xl border border-border-strong z-20 w-[min(16rem,calc(100vw-2rem))] py-1">
           <button
             onClick={onPreciseClick}
             disabled={gpsState === 'requesting'}
-            className="block w-full text-left px-3 py-2 text-sm hover:bg-amber-50 border-b border-amber-100 disabled:opacity-60"
+            className="block w-full text-left px-3 py-2 text-sm hover:bg-surface-muted border-b border-border disabled:opacity-60"
           >
             🎯 <span className="font-semibold">Use precise location</span>
-            <div className="text-xs text-amber-600 mt-0.5">
+            <div className="text-xs text-fg-muted mt-0.5">
               {gpsState === 'denied'
                 ? 'Permission denied — check browser settings'
                 : gpsState === 'requesting'
@@ -64,17 +64,17 @@ export default function LocationChip() {
             <button
               key={p.label}
               onClick={() => { setLocation({ ...p, source: 'manual' }); setOpen(false); }}
-              className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 ${
-                location?.label === p.label ? 'font-semibold text-amber-800' : ''
+              className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-surface-muted ${
+                location?.label === p.label ? 'font-semibold text-fg' : ''
               }`}
             >
               {p.label}
             </button>
           ))}
-          <hr className="my-1 border-amber-100" />
+          <hr className="my-1 border-border" />
           <button
             onClick={() => { clearLocation(); setOpen(false); }}
-            className="block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-amber-50 text-amber-600"
+            className="block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm hover:bg-surface-muted text-fg-muted"
           >
             Anywhere
           </button>

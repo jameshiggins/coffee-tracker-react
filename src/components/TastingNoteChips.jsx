@@ -33,6 +33,7 @@ export default function TastingNoteChips({ notes, onNoteClick = null, size = 'sm
               onClick={(e) => { e.stopPropagation(); onNoteClick(note); }}
               className={`${cls} hover:brightness-95 transition-all cursor-pointer`}
               title={`Filter by "${note}"`}
+              aria-label={`Filter by tasting note: ${note}`}
             >
               {note}
             </button>

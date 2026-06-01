@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
-import { formatBagWeight, labelContainsGrams } from '../utils/units.js';
+import { formatBagWeight, labelContainsGrams } from '../utils/units';
 import { ratingToStars, formatStars } from '../utils/rating.js';
 import { splitTastingNotes } from '../utils/flavorColor.js';
+import { TONE_TRIOS, ROAST_TONES } from '../ui/tones.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
 import WishlistHeart from './WishlistHeart.jsx';
 import TastingForm from './TastingForm.jsx';
@@ -40,6 +41,7 @@ export default function BeanCard({
   const [showAllTastingsModal, setShowAllTastingsModal] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const cardRef = useRef(null);
 
   // Lazy-load tastings only when card expands. Reload if the coffee changes.
   useEffect(() => {
@@ -49,6 +51,15 @@ export default function BeanCard({
       .then((d) => setTastings(d.tastings))
       .catch(() => setTastings([]));
   }, [isExpanded, coffee.id]);
+
+  // When a card expands it jumps to col-span-full and reflows the grid row,
+  // which can push its top out of view (the row it lands on depends on column
+  // count). Pull the freshly-expanded card back into view so the details the
+  // user just asked for are actually on screen. block:'nearest' keeps it from
+  // scrolling when the card is already fully visible.
+  useEffect(() => {
+    if (isExpanded) cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [isExpanded]);
 
   // The collapsed card shows ONE reference variant — the one closest to
   // 1 lb (454 g), the standard specialty bag size. This makes the
@@ -67,11 +78,12 @@ export default function BeanCard({
 
   return (
     <div
+      ref={cardRef}
       onClick={onCardClick}
-      className={`bg-white rounded-xl border shadow-sm transition-all cursor-pointer ${
+      className={`bg-surface rounded-xl border shadow-sm transition-all cursor-pointer ${
         isExpanded
-          ? 'border-amber-300 shadow-lg col-span-full ring-2 ring-amber-200'
-          : 'border-amber-100 hover:border-amber-200 hover:shadow-md'
+          ? 'border-accent/40 shadow-lg col-span-full ring-2 ring-accent/30'
+          : 'border-border hover:border-border-strong hover:shadow-md'
       }`}
     >
       {/* ---------- COLLAPSED HEADER (always visible) ---------- */}
@@ -85,7 +97,7 @@ export default function BeanCard({
               data-no-expand
               onClick={(e) => { e.stopPropagation(); setShowImageModal(true); }}
               title="Click to enlarge"
-              className={`flex-shrink-0 rounded-lg object-cover border border-amber-50 cursor-zoom-in hover:brightness-95 transition ${
+              className={`flex-shrink-0 rounded-lg object-cover border border-border cursor-zoom-in hover:brightness-95 transition ${
                 isExpanded ? 'w-32 h-32' : 'w-20 h-20'
               }`}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -97,16 +109,17 @@ export default function BeanCard({
               <button
                 data-no-expand
                 onClick={(e) => { e.stopPropagation(); onChipClick('roaster', coffee.roaster.slug); }}
-                className="text-xs text-amber-600 hover:text-amber-900 hover:underline uppercase tracking-wide"
-                title={`Filter to ${coffee.roaster.name}`}
+                className="group/roaster flex items-center gap-1.5 max-w-full text-xs text-fg-muted hover:text-fg uppercase tracking-wide"
+                title={`Filter by ${coffee.roaster.name}`}
               >
-                {coffee.roaster.name}
+                <RoasterAvatar name={coffee.roaster.name} faviconUrl={coffee.roaster.favicon_url} />
+                <span className="truncate group-hover/roaster:underline">{coffee.roaster.name}</span>
               </button>
             )}
-            <h3 className="text-base font-semibold text-amber-900 leading-tight mt-0.5">
+            <h3 className="text-base font-semibold text-fg leading-tight mt-1">
               {coffee.name}
               {coffee.is_removed && (
-                <span className="ml-2 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 align-middle">
+                <span className="ml-2 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 border-red-100 dark:bg-red-400/10 dark:text-red-300 dark:border-red-400/25 px-1.5 py-0.5 rounded border align-middle">
                   no longer sold
                 </span>
               )}
@@ -115,12 +128,14 @@ export default function BeanCard({
             {/* Front-and-center chip row: blend, process, region, varietal */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               <Chip
+                label="Type"
                 value={coffee.is_blend ? 'Blend' : 'Single Origin'}
                 onClick={() => onChipClick('blend', coffee.is_blend ? 'blend' : 'single-origin')}
                 tone={coffee.is_blend ? 'cyan' : 'emerald'}
               />
               {coffee.process && (
                 <Chip
+                  label="Process"
                   value={coffee.process}
                   onClick={() => onChipClick('process', coffee.process)}
                   tone="amber"
@@ -128,6 +143,7 @@ export default function BeanCard({
               )}
               {coffee.origin && (
                 <Chip
+                  label="Origin"
                   value={coffee.origin}
                   onClick={() => onChipClick('origin', coffee.origin)}
                   tone="sky"
@@ -135,6 +151,7 @@ export default function BeanCard({
               )}
               {coffee.varietal && (
                 <Chip
+                  label="Varietal"
                   value={coffee.varietal}
                   onClick={() => onChipClick('varietal', coffee.varietal)}
                   tone="stone"
@@ -142,6 +159,7 @@ export default function BeanCard({
               )}
               {coffee.roast_level && (
                 <Chip
+                  label="Roast"
                   value={coffee.roast_level}
                   onClick={() => onChipClick('roast_level', coffee.roast_level)}
                   tone={ROAST_TONES[coffee.roast_level.toLowerCase()] || 'stone'}
@@ -151,8 +169,9 @@ export default function BeanCard({
                 <span
                   data-no-expand
                   onClick={(e) => e.stopPropagation()}
-                  className="text-xs px-2 py-0.5 rounded-full border bg-violet-50 text-violet-700 border-violet-200"
+                  className={`text-xs px-2 py-0.5 rounded-full border ${TONE_TRIOS.violet}`}
                   title="Elevation above sea level"
+                  aria-label={`Elevation: ${coffee.elevation_meters.toLocaleString()} metres above sea level`}
                 >
                   {coffee.elevation_meters.toLocaleString()} m
                 </span>
@@ -175,24 +194,24 @@ export default function BeanCard({
               <div className="flex items-center gap-2 text-xs">
                 {stars != null ? (
                   <>
-                    <span className="text-amber-700">{formatStars(stars)}</span>
-                    <span className="text-amber-600">{stars.toFixed(1)} · {coffee.rating.count}</span>
+                    <span className="text-amber-500 dark:text-amber-400">{formatStars(stars)}</span>
+                    <span className="text-fg-muted">{stars.toFixed(1)} · {coffee.rating.count}</span>
                   </>
                 ) : (
-                  <span className="text-amber-300 italic">No ratings yet</span>
+                  <span className="text-fg-subtle italic">No ratings yet</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 {cheapest && (
                   <div className="text-right whitespace-nowrap">
-                    <div className="font-bold text-amber-900 leading-none">
+                    <div className="font-bold text-fg leading-none">
                       ${cheapest.price.toFixed(2)}
                     </div>
-                    <div className="text-amber-600 font-normal text-[11px] leading-none mt-1">
+                    <div className="text-fg-muted font-normal text-[11px] leading-none mt-1">
                       {formatBagWeight(cheapest.bag_weight_grams)}
                     </div>
                     {cheapest.cents_per_gram != null && (
-                      <div className="text-[11px] text-amber-700 font-mono leading-none mt-1">
+                      <div className="text-[11px] text-fg-muted font-mono leading-none mt-1">
                         {cheapest.cents_per_gram.toFixed(1)}¢/g
                       </div>
                     )}
@@ -209,7 +228,7 @@ export default function BeanCard({
 
       {/* ---------- EXPANDED BODY ---------- */}
       {isExpanded && (
-        <div className="border-t border-amber-100 p-5" data-no-expand onClick={(e) => e.stopPropagation()}>
+        <div className="border-t border-border p-5" data-no-expand onClick={(e) => e.stopPropagation()}>
           {/* Roaster blurb — collapsed teaser by default, "Read more" expands inline. */}
           {coffee.description && (
             <DescriptionBlock
@@ -222,10 +241,10 @@ export default function BeanCard({
           {/* Variants table — narrower padding + scrollable on mobile,
               bag size shown grams-only on small screens (lb suffix dropped). */}
           {coffee.variants?.length > 0 && (
-            <div className="mb-5 border border-amber-100 rounded-lg overflow-x-auto">
+            <div className="mb-5 border border-border rounded-lg overflow-x-auto">
               <table className="w-full text-sm min-w-[440px]">
                 <thead>
-                  <tr className="bg-amber-50 text-amber-800 text-xs uppercase tracking-wide">
+                  <tr className="bg-surface-muted text-fg text-xs uppercase tracking-wide">
                     <th className="text-left px-2 sm:px-4 py-2">Container</th>
                     <th className="text-right px-2 sm:px-4 py-2">Price</th>
                     <th className="text-right px-2 sm:px-4 py-2">¢/g</th>
@@ -233,10 +252,10 @@ export default function BeanCard({
                     <th className="text-right px-2 sm:px-4 py-2">Buy</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-amber-50">
+                <tbody className="divide-y divide-border">
                   {coffee.variants.map((v) => (
                     <tr key={v.id} className={!v.in_stock ? 'opacity-40' : ''}>
-                      <td className="px-2 sm:px-4 py-2 font-medium text-amber-900 whitespace-nowrap">
+                      <td className="px-2 sm:px-4 py-2 font-medium text-fg whitespace-nowrap">
                         {v.source_size_label ? (
                           <>
                             <span>{v.source_size_label}</span>
@@ -245,7 +264,7 @@ export default function BeanCard({
                                 "100 g tin" should NOT render as
                                 "100 g tin (100g)". */}
                             {!labelContainsGrams(v.source_size_label, v.bag_weight_grams) && (
-                              <span className="text-amber-500 text-[11px] ml-1">({v.bag_weight_grams}g)</span>
+                              <span className="text-fg-subtle text-[11px] ml-1">({v.bag_weight_grams}g)</span>
                             )}
                           </>
                         ) : (
@@ -255,14 +274,14 @@ export default function BeanCard({
                           </>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 text-right font-medium text-amber-900 whitespace-nowrap">
-                        {v.currency_code !== 'CAD' && <span className="text-amber-500 text-xs mr-1">{v.currency_code}</span>}
+                      <td className="px-2 sm:px-4 py-2 text-right font-medium text-fg whitespace-nowrap">
+                        {v.currency_code !== 'CAD' && <span className="text-fg-subtle text-xs mr-1">{v.currency_code}</span>}
                         ${v.price.toFixed(2)}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 text-right text-amber-700 font-mono text-xs whitespace-nowrap">{v.cents_per_gram?.toFixed(1)}¢</td>
+                      <td className="px-2 sm:px-4 py-2 text-right text-fg-muted font-mono text-xs whitespace-nowrap">{v.cents_per_gram?.toFixed(1)}¢</td>
                       <td className="px-2 sm:px-4 py-2 text-center">
                         <span
-                          className={`inline-block w-2 h-2 rounded-full ${v.in_stock ? 'bg-green-400' : 'bg-red-300'}`}
+                          className={`inline-block w-2 h-2 rounded-full ${v.in_stock ? 'bg-emerald-500' : 'bg-red-400'}`}
                           title={v.in_stock ? 'In stock' : 'Out of stock'}
                         />
                       </td>
@@ -272,12 +291,12 @@ export default function BeanCard({
                             href={v.purchase_link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-block bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
+                            className="inline-block bg-accent hover:bg-accent-hover text-accent-fg text-xs font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
                           >
                             Buy ↗
                           </a>
                         ) : (
-                          <span className="text-amber-300 text-xs">—</span>
+                          <span className="text-fg-subtle text-xs">—</span>
                         )}
                       </td>
                     </tr>
@@ -299,7 +318,7 @@ export default function BeanCard({
                 </button>
               )}
               {savedMsg && (
-                <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2">
+                <div className="text-sm text-green-700 bg-green-50 border border-green-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 rounded p-2">
                   Tasting saved.
                 </div>
               )}
@@ -319,17 +338,17 @@ export default function BeanCard({
 
           {/* Recent public tastings (top 3) + "see all" */}
           {tastings === null ? (
-            <div className="text-amber-500 text-xs italic">Loading tastings…</div>
+            <div className="text-fg-subtle text-xs italic">Loading tastings…</div>
           ) : tastings.length > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-amber-900">
+                <h4 className="text-sm font-semibold text-fg">
                   Recent tastings ({tastings.length})
                 </h4>
                 {tastings.length > 3 && (
                   <button
                     onClick={() => setShowAllTastingsModal(true)}
-                    className="text-xs text-amber-700 hover:underline"
+                    className="text-xs text-accent hover:underline"
                   >
                     See all {tastings.length} →
                   </button>
@@ -366,36 +385,72 @@ export default function BeanCard({
 
 /* ----------------- helpers ----------------- */
 
-const TONES = {
-  amber: 'bg-amber-50 text-amber-700 border-amber-200',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  sky: 'bg-sky-50 text-sky-700 border-sky-200',
-  stone: 'bg-stone-50 text-stone-700 border-stone-200',
-  yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  orange: 'bg-orange-50 text-orange-700 border-orange-200',
-  red: 'bg-red-50 text-red-700 border-red-200',
-};
-
-const ROAST_TONES = {
-  light: 'yellow',
-  medium: 'orange',
-  'medium-dark': 'orange',
-  dark: 'red',
-};
-
-function Chip({ value, onClick, tone = 'stone' }) {
-  const cls = TONES[tone] || TONES.stone;
+// TONES + ROAST_TONES are imported from ../ui/tones.js (shared with the Chip
+// and Badge primitives) so colours — and their dark-mode variants — stay in
+// one place.
+function Chip({ value, onClick, tone = 'stone', label }) {
+  const cls = TONE_TRIOS[tone] || TONE_TRIOS.stone;
+  // `label` names the field category (Process, Origin, …). Folding it into the
+  // accessible name makes chips distinguishable without relying on tone color
+  // (a11y#2) and gives screen-reader users the context the color conveys.
+  const accessibleName = label ? `Filter by ${label}: ${value}` : `Filter by ${value}`;
   return (
     <button
       data-no-expand
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       className={`text-xs px-2 py-0.5 rounded-full border capitalize hover:brightness-95 transition-all ${cls}`}
-      title={`Filter by ${value}`}
+      title={accessibleName}
+      aria-label={accessibleName}
     >
       {value}
     </button>
   );
+}
+
+/**
+ * Roaster avatar. Prefers the roaster's actual favicon/logo — the same
+ * `favicon_url` the roaster lists render — so the chip shows a real brand
+ * mark instead of generic initials ("ON", "CC"). Falls back to a
+ * deterministic tinted monogram when there's no favicon or the image fails
+ * to load (404 / blocked). Decorative — the roaster name sits right beside
+ * it, so it's aria-hidden.
+ */
+function RoasterAvatar({ name, faviconUrl, className = '' }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (faviconUrl && !imgFailed) {
+    return (
+      <img
+        src={faviconUrl}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        onError={() => setImgFailed(true)}
+        className={`w-6 h-6 rounded-sm flex-shrink-0 object-contain bg-surface-muted border border-border ${className}`}
+      />
+    );
+  }
+
+  const initials = roasterInitials(name);
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex items-center justify-center rounded-md font-bold leading-none flex-shrink-0 w-6 h-6 text-[10px] text-white ${className}`}
+      style={{ backgroundColor: `hsl(${hue} 42% 42%)` }}
+    >
+      {initials}
+    </span>
+  );
+}
+
+function roasterInitials(name) {
+  const words = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 function DescriptionBlock({ text, expanded, onToggle }) {
@@ -409,12 +464,12 @@ function DescriptionBlock({ text, expanded, onToggle }) {
   const hasMore = teaser.length < t.length;
   return (
     <div className="mb-4">
-      <p className="text-sm text-amber-900 leading-relaxed">
+      <p className="text-sm text-fg leading-relaxed">
         {expanded ? t : teaser}
         {hasMore && !expanded && (
           <button
             onClick={onToggle}
-            className="text-amber-700 hover:underline text-xs ml-1"
+            className="text-accent hover:underline text-xs ml-1"
           >
             Read more →
           </button>
@@ -443,25 +498,25 @@ function pickReferenceVariant(variants) {
 function TastingRow({ t }) {
   const stars = ratingToStars(t.rating);
   return (
-    <div className="border border-amber-100 rounded-md p-2.5 bg-amber-50/40">
+    <div className="border border-border rounded-md p-2.5 bg-surface-muted">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {t.user.avatar_url && (
-            <img src={t.user.avatar_url} alt="" className="w-6 h-6 rounded-full border border-amber-100" />
+            <img src={t.user.avatar_url} alt="" className="w-6 h-6 rounded-full border border-border" />
           )}
-          <div className="text-xs text-amber-900 truncate">
+          <div className="text-xs text-fg truncate">
             <span className="font-medium">{t.user.display_name || `User #${t.user.id}`}</span>
-            <span className="text-amber-600 mx-1.5">·</span>
-            <span className="text-amber-600">{t.tasted_on}</span>
-            {t.brew_method && <span className="text-amber-600"> · {t.brew_method}</span>}
+            <span className="text-fg-muted mx-1.5">·</span>
+            <span className="text-fg-muted">{t.tasted_on}</span>
+            {t.brew_method && <span className="text-fg-muted"> · {t.brew_method}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {stars != null && <span className="text-amber-700 text-sm">{formatStars(stars)}</span>}
+          {stars != null && <span className="text-amber-500 dark:text-amber-400 text-sm">{formatStars(stars)}</span>}
           <ReportTastingButton tastingId={t.id} />
         </div>
       </div>
-      {t.notes && <div className="text-xs text-amber-800 italic mt-1.5 leading-snug">{t.notes}</div>}
+      {t.notes && <div className="text-xs text-fg-muted italic mt-1.5 leading-snug">{t.notes}</div>}
     </div>
   );
 }
@@ -474,17 +529,17 @@ function AllTastingsModal({ coffee, tastings, onClose }) {
       data-no-expand
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+        className="bg-surface-elevated rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b border-amber-100 flex items-center justify-between gap-3">
-          <h3 className="font-bold text-amber-900 min-w-0 truncate">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+          <h3 className="font-bold text-fg min-w-0 truncate">
             All tastings ({tastings.length}) · {coffee.name}
           </h3>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-amber-700 hover:text-amber-900 text-xl leading-none flex-shrink-0 w-11 h-11 -mr-2 inline-flex items-center justify-center"
+            className="text-fg-muted hover:text-fg text-xl leading-none flex-shrink-0 w-11 h-11 -mr-2 inline-flex items-center justify-center"
           >
             ✕
           </button>

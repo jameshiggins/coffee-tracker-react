@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useSeo } from '../hooks/useSeo.js';
 
 /**
  * Boilerplate privacy policy. Plain language, no legalese, but covers:
@@ -12,15 +13,16 @@ import { Link } from 'react-router-dom';
  * legal advice.
  */
 export default function Privacy() {
+  useSeo({ title: 'Privacy', description: 'How Roastmap collects, uses, and protects your data.' });
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <Link to="/" className="text-amber-700 hover:text-amber-900 text-sm">← Home</Link>
-      <h1 className="text-3xl font-bold text-amber-900 mt-3">Privacy Policy</h1>
-      <p className="text-xs text-amber-600 mt-1">Last updated: April 28, 2026</p>
+      <Link to="/" className="text-accent hover:underline text-sm">← Home</Link>
+      <h1 className="text-3xl font-bold text-fg mt-3">Privacy Policy</h1>
+      <p className="text-xs text-fg-muted mt-1">Last updated: April 28, 2026</p>
 
       <Section title="What this site does">
         <p>
-          Specialty Coffee Roasters is a public directory of Canadian micro-roasters.
+          Roastmap is a public directory of Canadian micro-roasters.
           We scrape roaster websites to track current beans, prices, and stock.
           Signed-in users can rate beans, write tasting notes, and keep a wishlist.
         </p>
@@ -79,7 +81,7 @@ export default function Privacy() {
       <Section title="Contact">
         <p>
           Privacy questions, data-export requests, takedowns:{' '}
-          <a href="mailto:privacy@example.com" className="text-amber-800 underline">privacy@example.com</a>
+          <a href="mailto:privacy@example.com" className="text-accent underline">privacy@example.com</a>
         </p>
       </Section>
     </div>
@@ -89,8 +91,8 @@ export default function Privacy() {
 function Section({ title, children }) {
   return (
     <section className="mt-6">
-      <h2 className="text-xl font-bold text-amber-900 mb-2">{title}</h2>
-      <div className="text-amber-900 leading-relaxed">{children}</div>
+      <h2 className="text-xl font-bold text-fg mb-2">{title}</h2>
+      <div className="text-fg-muted leading-relaxed">{children}</div>
     </section>
   );
 }

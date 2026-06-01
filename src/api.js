@@ -2,9 +2,29 @@
 // to localhost so dev still works without a .env file.
 const BASE = (import.meta.env?.VITE_API_BASE ?? 'http://localhost:8000') + '/api';
 
+// Map an HTTP status to a friendly, user-facing message. Deliberately
+// vague about internals — no URLs, no base host, no status codes leak
+// into the UI. Technical detail goes to the console for debugging.
+function friendlyHttpMessage(status) {
+  if (status === 404) return "We couldn't find what you were looking for.";
+  if (status === 429) return "We're getting a lot of requests right now — please try again in a moment.";
+  if (status >= 500) return 'Something went wrong on our end. Please try again shortly.';
+  return 'Something went wrong loading this page. Please try again.';
+}
+
 async function getJson(path) {
-  const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${path}`);
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`);
+  } catch (networkErr) {
+    // fetch() rejects only on a true network failure (offline, DNS, CORS).
+    console.error(`[api] network error for ${path}:`, networkErr);
+    throw new Error("We couldn't reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    console.error(`[api] ${res.status} ${res.statusText} for ${BASE}${path}`);
+    throw new Error(friendlyHttpMessage(res.status));
+  }
   return res.json();
 }
 

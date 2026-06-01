@@ -26,7 +26,7 @@ export default function WishlistHeart({ coffeeId, size = 'md' }) {
         wishlisted ? remove(coffeeId) : add(coffeeId);
       }}
       className={`${px} transition-colors leading-none ${
-        wishlisted ? 'text-red-500 hover:text-red-600' : 'text-amber-300 hover:text-red-400'
+        wishlisted ? 'text-red-500 hover:text-red-600 dark:text-red-400' : 'text-fg-subtle hover:text-red-400'
       }`}
     >
       {wishlisted ? '♥' : '♡'}

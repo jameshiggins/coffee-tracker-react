@@ -23,12 +23,12 @@ export default function ForgotPassword() {
   if (submitted) {
     return (
       <div className="p-6 max-w-md mx-auto">
-        <h1 className="text-2xl font-bold text-amber-900 mb-3">Check your email</h1>
-        <p className="text-amber-800">
+        <h1 className="text-2xl font-bold text-fg mb-3">Check your email</h1>
+        <p className="text-fg">
           If an account exists for <strong>{email}</strong>, we've sent a password
           reset link. The link expires in 60 minutes.
         </p>
-        <p className="text-sm text-amber-600 mt-4">
+        <p className="text-sm text-fg-muted mt-4">
           Didn't receive it? Check your spam folder, or{' '}
           <button onClick={() => setSubmitted(false)} className="underline">try a different address</button>.
         </p>
@@ -38,20 +38,20 @@ export default function ForgotPassword() {
 
   return (
     <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-amber-900 mb-4">Forgot password?</h1>
-      <form onSubmit={submit} className="space-y-3 bg-white p-5 rounded-xl border border-amber-100 shadow-sm">
+      <h1 className="text-2xl font-bold text-fg mb-4">Forgot password?</h1>
+      <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
         <div>
-          <label className="text-xs uppercase tracking-wide text-amber-700">Email</label>
+          <label className="text-xs uppercase tracking-wide text-fg-muted">Email</label>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                  autoComplete="email"
-                 className="w-full p-2 border border-amber-200 rounded-md focus:outline-none focus:border-amber-700" />
+                 className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
         </div>
         <button type="submit" disabled={submitting}
-                className="w-full bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white py-2 rounded-md font-medium">
+                className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
           {submitting ? 'Sending…' : 'Send reset link'}
         </button>
       </form>
-      <p className="text-center text-sm text-amber-700 mt-6">
+      <p className="text-center text-sm text-fg-muted mt-6">
         <Link to="/sign-in" className="underline">Back to sign in</Link>
       </p>
     </div>

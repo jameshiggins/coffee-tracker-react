@@ -8,8 +8,63 @@
     <meta name="theme-color" content="#6f4326" />
     <meta name="description" content="Roastmap — the map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
     <title>Roastmap — Canadian specialty coffee</title>
+
+    <!-- Canonical + social cards. These are the no-JS fallbacks that crawlers
+         and link-unfurlers (Slack, iMessage, Facebook, etc.) read from the
+         static HTML; src/hooks/useSeo.js overrides title/description/url
+         per route once React mounts. -->
+    <link rel="canonical" href="https://roastmap.ca/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Roastmap" />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:title" content="Roastmap — Canadian specialty coffee" />
+    <meta property="og:description" content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
+    <meta property="og:url" content="https://roastmap.ca/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Roastmap — Canadian specialty coffee" />
+    <meta name="twitter:description" content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
+
+    <!-- Structured data: a WebSite node with a SearchAction so search engines
+         can offer a sitelinks search box that deep-links into the bean search. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Roastmap",
+        "url": "https://roastmap.ca",
+        "description": "The map of Canadian specialty coffee — a directory of Canadian micro-roasters and the beans they're roasting right now.",
+        "inLanguage": "en-CA",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://roastmap.ca/beans?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+    <!-- Apply the saved/OS theme BEFORE first paint to avoid a light-mode
+         flash. Mirrors the logic in src/hooks/useTheme.js. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('roastmap_theme');
+          var dark = s ? s === 'dark'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', '#15100d');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="min-h-screen" style="background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);">
+  <!-- Body background (the desktop page frame) lives in src/styles/tokens.css
+       so it can flip with the dark-mode toggle. The inline color is a flash-of-
+       unstyled fallback before the bundle's CSS loads. -->
+  <body class="min-h-screen" style="background-color:#4a3024;">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

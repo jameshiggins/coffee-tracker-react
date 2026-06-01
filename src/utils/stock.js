@@ -10,7 +10,7 @@ export function isCoffeeInStock(coffee) {
 
 /**
  * Given a roaster, derive how many of its coffees are currently buyable.
- * Used by IndexPage when the show-out-of-stock toggle is OFF.
+ * Used by the roaster list when the show-out-of-stock toggle is OFF.
  */
 export function inStockCount(roaster) {
   return (roaster?.coffees ?? []).filter(isCoffeeInStock).length;

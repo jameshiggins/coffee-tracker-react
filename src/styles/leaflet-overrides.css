@@ -1,0 +1,53 @@
+/*
+ * Mobile#6 — touch-friendly Leaflet controls & popups.
+ *
+ * Imported by MapPage.jsx immediately AFTER `leaflet/dist/leaflet.css` so these
+ * rules win on equal specificity within the lazy map chunk. The enlargements
+ * are gated to coarse pointers (touch) so a desktop mouse keeps Leaflet's
+ * compact native controls; the popup polish below is pointer-agnostic.
+ */
+
+@media (pointer: coarse) {
+  /* Zoom +/- buttons ship as 26–30px squares — under the 44px touch target.
+     Cover both the plain and the .leaflet-touch variant Leaflet auto-applies. */
+  .leaflet-touch .leaflet-bar a,
+  .leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 1.45rem;
+  }
+
+  /* Pull the zoom cluster off the very screen edge so it clears the thumb
+     gesture zone on a phone. */
+  .leaflet-control-zoom {
+    margin: 12px !important;
+  }
+
+  /* Default close "×" is ~18px in an 18px box — bump it to a real tap target. */
+  .leaflet-popup-close-button {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 26px !important;
+    padding: 4px 6px 0 0 !important;
+  }
+
+  /* MapPopupCard's CTA links carry ~7px inline padding (≈30px tall). Grow the
+     vertical padding to a ~44px row on touch. Scoped to .rm-popup-btn so the
+     bold title link above is left alone. !important beats the inline style. */
+  .leaflet-popup-content .rm-popup-btn {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+}
+
+/* Pointer-agnostic popup polish: round the wrapper to match the app's cards
+   and keep a long roaster name from pushing the popup past the screen. The
+   88vw clamp sits comfortably above MapPopupCard's 240px min-width on phones. */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+}
+.leaflet-popup-content {
+  margin: 12px 16px;
+  max-width: 88vw;
+}

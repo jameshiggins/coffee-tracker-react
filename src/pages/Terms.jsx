@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom';
+import { useSeo } from '../hooks/useSeo.js';
 
 /**
  * Boilerplate terms of service. Same caveat as Privacy: have a lawyer
  * review before going live in a regulated jurisdiction.
  */
 export default function Terms() {
+  useSeo({ title: 'Terms', description: 'The terms of use for Roastmap.' });
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <Link to="/" className="text-amber-700 hover:text-amber-900 text-sm">← Home</Link>
-      <h1 className="text-3xl font-bold text-amber-900 mt-3">Terms of Service</h1>
-      <p className="text-xs text-amber-600 mt-1">Last updated: April 28, 2026</p>
+      <Link to="/" className="text-accent hover:underline text-sm">← Home</Link>
+      <h1 className="text-3xl font-bold text-fg mt-3">Terms of Service</h1>
+      <p className="text-xs text-fg-muted mt-1">Last updated: April 28, 2026</p>
 
       <Section title="Using this site">
         <p>
@@ -87,7 +89,7 @@ export default function Terms() {
 
       <Section title="Contact">
         <p>
-          Questions: <a href="mailto:hello@example.com" className="text-amber-800 underline">hello@example.com</a>
+          Questions: <a href="mailto:hello@example.com" className="text-accent underline">hello@example.com</a>
         </p>
       </Section>
     </div>
@@ -97,8 +99,8 @@ export default function Terms() {
 function Section({ title, children }) {
   return (
     <section className="mt-6">
-      <h2 className="text-xl font-bold text-amber-900 mb-2">{title}</h2>
-      <div className="text-amber-900 leading-relaxed">{children}</div>
+      <h2 className="text-xl font-bold text-fg mb-2">{title}</h2>
+      <div className="text-fg-muted leading-relaxed">{children}</div>
     </section>
   );
 }

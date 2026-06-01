@@ -29,7 +29,7 @@ export default function MapPopupCard({ roaster, inStockCount }) {
       )}
 
       <div style={{ fontSize: 12, color: '#3a2614', marginTop: 8 }}>
-        <strong>{inStockCount}</strong> {inStockCount === 1 ? 'coffee' : 'coffees'} in stock
+        <strong>{inStockCount}</strong> {inStockCount === 1 ? 'bean' : 'beans'} in stock
       </div>
       {roaster.free_shipping_over != null && (
         <div style={{ fontSize: 11, color: '#7a5a3a', marginTop: 2 }}>
@@ -40,6 +40,7 @@ export default function MapPopupCard({ roaster, inStockCount }) {
       <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
         <Link
           to={beansUrl}
+          className="rm-popup-btn"
           style={{
             flex: 1,
             textAlign: 'center',
@@ -59,6 +60,7 @@ export default function MapPopupCard({ roaster, inStockCount }) {
             href={roaster.website_url}
             target="_blank"
             rel="noopener noreferrer"
+            className="rm-popup-btn"
             style={{
               flex: 1,
               textAlign: 'center',

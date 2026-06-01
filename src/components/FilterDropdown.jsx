@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { FILTER_TONE_BUNDLES } from '../ui/tones.js';
 
 /**
  * Compact dropdown filter for the /beans page header.
@@ -20,40 +21,73 @@ import { useEffect, useRef, useState } from 'react';
  *              ("emerald" for Type, "amber" for Process, "sky" for Region,
  *              "stone" for Varietal, "violet" for Elevation, etc.).
  *              Defaults to "amber" — the page's brand color.
+ *
+ * Accessibility (a11y#1 / a11y#4):
+ *   - Trigger is a menu button: aria-haspopup="menu", aria-expanded,
+ *     aria-controls. ArrowDown/Up opens it from the keyboard.
+ *   - Panel is role="menu"; options are menuitemradio (single) /
+ *     menuitemcheckbox (multi) so selection state is announced, and the
+ *     Clear action is a plain menuitem.
+ *   - Roving focus: Arrow keys move between items, Home/End jump to ends,
+ *     native Enter/Space activate (button click / checkbox toggle).
+ *   - Focus management: opening moves focus to the active (or first) item;
+ *     Escape, selecting, or clearing closes and restores focus to the
+ *     trigger so keyboard users aren't dumped at the top of the page.
  */
 
-// Tone → Tailwind class bundles. Each bundle covers the button (idle +
-// active), the dropdown panel border, and the option hover/selected state.
-// Tailwind's JIT scans source files for literal class strings, so each
-// `bg-emerald-100` etc. must appear verbatim somewhere in the codebase
-// (this object satisfies that for every supported tone).
-const TONES = {
-  amber:   { btnActive: 'bg-amber-100 border-amber-300 text-amber-900',     btnIdle: 'bg-white border-amber-200 text-amber-700 hover:border-amber-400',     hover: 'hover:bg-amber-50',   selected: 'font-semibold text-amber-800 bg-amber-50',   border: 'border-amber-200', accent: 'accent-amber-700',   countText: 'text-amber-500',  divider: 'border-amber-100', clearText: 'text-amber-600' },
-  emerald: { btnActive: 'bg-emerald-100 border-emerald-300 text-emerald-900', btnIdle: 'bg-white border-emerald-200 text-emerald-700 hover:border-emerald-400', hover: 'hover:bg-emerald-50', selected: 'font-semibold text-emerald-800 bg-emerald-50', border: 'border-emerald-200', accent: 'accent-emerald-700', countText: 'text-emerald-500', divider: 'border-emerald-100', clearText: 'text-emerald-600' },
-  sky:     { btnActive: 'bg-sky-100 border-sky-300 text-sky-900',           btnIdle: 'bg-white border-sky-200 text-sky-700 hover:border-sky-400',           hover: 'hover:bg-sky-50',     selected: 'font-semibold text-sky-800 bg-sky-50',       border: 'border-sky-200',   accent: 'accent-sky-700',     countText: 'text-sky-500',    divider: 'border-sky-100',   clearText: 'text-sky-600' },
-  stone:   { btnActive: 'bg-stone-200 border-stone-400 text-stone-900',     btnIdle: 'bg-white border-stone-300 text-stone-700 hover:border-stone-500',     hover: 'hover:bg-stone-100',  selected: 'font-semibold text-stone-900 bg-stone-100',  border: 'border-stone-300', accent: 'accent-stone-700',   countText: 'text-stone-500',  divider: 'border-stone-200', clearText: 'text-stone-600' },
-  violet:  { btnActive: 'bg-violet-100 border-violet-300 text-violet-900',  btnIdle: 'bg-white border-violet-200 text-violet-700 hover:border-violet-400',  hover: 'hover:bg-violet-50',  selected: 'font-semibold text-violet-800 bg-violet-50', border: 'border-violet-200', accent: 'accent-violet-700', countText: 'text-violet-500', divider: 'border-violet-100', clearText: 'text-violet-600' },
-  cyan:    { btnActive: 'bg-cyan-100 border-cyan-300 text-cyan-900',        btnIdle: 'bg-white border-cyan-200 text-cyan-700 hover:border-cyan-400',        hover: 'hover:bg-cyan-50',    selected: 'font-semibold text-cyan-800 bg-cyan-50',     border: 'border-cyan-200',  accent: 'accent-cyan-700',    countText: 'text-cyan-500',   divider: 'border-cyan-100',  clearText: 'text-cyan-600' },
-  rose:    { btnActive: 'bg-rose-100 border-rose-300 text-rose-900',        btnIdle: 'bg-white border-rose-200 text-rose-700 hover:border-rose-400',        hover: 'hover:bg-rose-50',    selected: 'font-semibold text-rose-800 bg-rose-50',     border: 'border-rose-200',  accent: 'accent-rose-700',    countText: 'text-rose-500',   divider: 'border-rose-100',  clearText: 'text-rose-600' },
-};
+// Tone → Tailwind class bundles now live in ../ui/tones.js (FILTER_TONE_BUNDLES,
+// shared and dark-mode aware). Each bundle covers the trigger button (idle +
+// active), the panel border, option hover/selected, the checkbox accent, count
+// text, divider, and clear link.
 
 export default function FilterDropdown({ label, value, options, onPick, multi = false, tone = 'amber' }) {
-  const t = TONES[tone] || TONES.amber;
+  const t = FILTER_TONE_BUNDLES[tone] || FILTER_TONE_BUNDLES.amber;
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  const panelId = useId();
 
+  // Close on click-outside (no focus move — the user clicked elsewhere) or
+  // Escape (restore focus to the trigger so keyboard users keep their place).
   useEffect(() => {
     if (!open) return;
     function onDocClick(e) {
       if (!wrapRef.current?.contains(e.target)) setOpen(false);
     }
-    function onEsc(e) { if (e.key === 'Escape') setOpen(false); }
+    function onEsc(e) {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onEsc);
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onEsc);
     };
+  }, [open]);
+
+  // On open, pull focus into the menu — onto the selected/checked item if
+  // there is one, else the first. Lets keyboard users act without a manual Tab.
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const items = panelRef.current.querySelectorAll('[data-menuitem]');
+    if (!items.length) return;
+    const selectedEl = panelRef.current.querySelector('[data-menuitem][data-selected="true"]');
+    (selectedEl || items[0]).focus();
+  }, [open]);
+
+  // mobile#1: when the panel renders as a bottom sheet (narrow viewport), lock
+  // body scroll so the page behind doesn't slide under the sheet. No-op at sm:+
+  // where the panel is a small anchored popover that shouldn't lock the page.
+  useEffect(() => {
+    if (!open) return;
+    if (!window.matchMedia('(max-width: 639px)').matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   const selected = multi ? (Array.isArray(value) ? value : []) : value;
@@ -76,27 +110,103 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
     if (multi) onPick([]);
     else onPick('');
     setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function pickSingle(optValue) {
+    onPick(optValue);
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  // Roving Arrow/Home/End navigation across the menu items.
+  function onPanelKeyDown(e) {
+    const items = [...(panelRef.current?.querySelectorAll('[data-menuitem]') || [])];
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(i + 1) % items.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i - 1 + items.length) % items.length]?.focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      items[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      items[items.length - 1]?.focus();
+    }
+  }
+
+  // Menu-button convention: ArrowDown/Up opens the closed menu.
+  function onTriggerKeyDown(e) {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      setOpen(true);
+    }
   }
 
   return (
     <div ref={wrapRef} className="relative inline-block">
       <button
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
-        className={`text-sm px-3 py-2 rounded-lg border transition-colors max-w-full truncate ${
+        onKeyDown={onTriggerKeyDown}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        className={`text-sm px-3 py-2 min-h-[44px] sm:min-h-0 rounded-lg border transition-colors max-w-full inline-flex items-center justify-center ${
           active ? `${t.btnActive} font-medium` : t.btnIdle
         }`}
       >
-        {label}{buttonSummary}
-        <span className="ml-1 opacity-60">▾</span>
+        <span className="truncate">{label}{buttonSummary}</span>
+        <span className="ml-1 opacity-60 flex-shrink-0" aria-hidden="true">▾</span>
       </button>
       {open && (
-        // Width is clamped to the viewport (minus the page gutter) so a
-        // 220px panel never causes horizontal scroll or clips on a 360px
-        // phone. left-0 + max-width keeps it on-screen near either edge.
-        <div className={`absolute left-0 mt-1 bg-white text-amber-900 rounded-lg shadow-xl border ${t.border} z-30 w-[max(13.75rem,0px)] max-w-[calc(100vw-2.5rem)] max-h-[60vh] overflow-y-auto py-1`}>
+        <>
+          {/* mobile#1: dim, tap-to-close backdrop behind the bottom sheet.
+              Hidden at sm:+ where the panel is a small anchored popover and the
+              document mousedown handler already covers click-outside. */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+            aria-hidden="true"
+            onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
+          />
+          {/* On a phone this is a full-width bottom sheet (thumb-reachable, no
+              tiny popover to aim at); at sm:+ it's the original anchored menu,
+              width-clamped to the viewport so it never clips near a screen edge. */}
+          <div
+            ref={panelRef}
+            id={panelId}
+            role="menu"
+            aria-label={label}
+            aria-multiselectable={multi ? true : undefined}
+            onKeyDown={onPanelKeyDown}
+            className={`fixed sm:absolute inset-x-0 sm:inset-x-auto bottom-0 sm:bottom-auto left-0 sm:mt-1 bg-surface-elevated text-fg rounded-t-2xl sm:rounded-lg shadow-xl border ${t.border} z-50 sm:z-30 w-full sm:w-[max(13.75rem,0px)] sm:max-w-[calc(100vw-2.5rem)] max-h-[78vh] sm:max-h-[60vh] overflow-y-auto pt-0 sm:pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-1`}
+          >
+            {/* mobile-only sheet header: grab handle + label + Done, so a
+                multi-select sheet can be dismissed without reaching outside it.
+                Sticky so it stays put while the options scroll. */}
+            <div className="sm:hidden sticky top-0 z-10 bg-surface-elevated border-b border-border">
+              <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-border-strong" aria-hidden="true" />
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="font-semibold text-fg">{label}</span>
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
+                  className="text-accent font-semibold text-sm px-3 py-2 -mr-2 min-h-[44px]"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
           {active && (
             <>
               <button
+                data-menuitem
+                role="menuitem"
+                tabIndex={-1}
                 onClick={clearAll}
                 className={`block w-full text-left px-3 py-2 text-sm ${t.clearText} ${t.hover}`}
               >
@@ -106,7 +216,7 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
             </>
           )}
           {options.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-amber-400 italic">No options</div>
+            <div className="px-3 py-2 text-sm text-fg-subtle italic">No options</div>
           ) : multi ? (
             options.map((opt) => {
               const checked = selected.includes(opt.value);
@@ -119,6 +229,11 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
                 >
                   <input
                     type="checkbox"
+                    data-menuitem
+                    data-selected={checked}
+                    role="menuitemcheckbox"
+                    aria-checked={checked}
+                    tabIndex={-1}
                     checked={checked}
                     onChange={() => toggleMulti(opt.value)}
                     className={t.accent}
@@ -134,7 +249,12 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
             options.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => { onPick(opt.value); setOpen(false); }}
+                data-menuitem
+                data-selected={selected === opt.value}
+                role="menuitemradio"
+                aria-checked={selected === opt.value}
+                tabIndex={-1}
+                onClick={() => pickSingle(opt.value)}
                 className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-sm ${t.hover} ${
                   selected === opt.value ? t.selected : ''
                 }`}
@@ -146,7 +266,8 @@ export default function FilterDropdown({ label, value, options, onPick, multi = 
               </button>
             ))
           )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

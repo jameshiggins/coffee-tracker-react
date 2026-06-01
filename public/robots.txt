@@ -1,0 +1,15 @@
+# Roastmap — https://roastmap.ca
+# Public directory pages are all crawlable. The routes below are either
+# per-user, auth flows, or callback endpoints with no standalone SEO value.
+
+User-agent: *
+Allow: /
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verified
+Disallow: /auth/
+Disallow: /me
+
+Sitemap: https://roastmap.ca/sitemap.xml

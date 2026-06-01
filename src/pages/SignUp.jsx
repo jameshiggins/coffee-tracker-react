@@ -41,8 +41,8 @@ export default function SignUp() {
 
   return (
     <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-amber-900 mb-4">Create an account</h1>
-      <form onSubmit={submit} className="space-y-3 bg-white p-5 rounded-xl border border-amber-100 shadow-sm">
+      <h1 className="text-2xl font-bold text-fg mb-4">Create an account</h1>
+      <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
         <Field label="Name" value={name} setter={setName} required autoComplete="name" error={errMsg('name')} />
         <Field label="Display name (optional)" value={displayName} setter={setDisplayName}
                placeholder="how others see you in shared tastings" />
@@ -52,22 +52,22 @@ export default function SignUp() {
         <Field label="Confirm password" type="password" value={confirm} setter={setConfirm} required
                autoComplete="new-password" />
 
-        {errors._ && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{errors._[0]}</div>}
+        {errors._ && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{errors._[0]}</div>}
 
         <button type="submit" disabled={submitting}
-                className="w-full bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white py-2 rounded-md font-medium">
+                className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
           {submitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>
 
-      <div className="text-center text-amber-600 text-sm my-4">or</div>
+      <div className="text-center text-fg-muted text-sm my-4">or</div>
 
       <a href={GOOGLE_REDIRECT_URL}
-         className="block w-full text-center bg-white border border-amber-200 hover:border-amber-400 text-amber-900 py-2 rounded-md font-medium">
+         className="block w-full text-center bg-surface border border-border-strong hover:border-border-strong text-fg py-2 rounded-md font-medium">
         Continue with Google
       </a>
 
-      <p className="text-center text-sm text-amber-700 mt-6">
+      <p className="text-center text-sm text-fg-muted mt-6">
         Already have an account? <Link to="/sign-in" className="underline font-medium">Sign in</Link>
       </p>
     </div>
@@ -77,7 +77,7 @@ export default function SignUp() {
 function Field({ label, value, setter, type = 'text', required, autoComplete, placeholder, error, hint }) {
   return (
     <div>
-      <label className="text-xs uppercase tracking-wide text-amber-700">{label}</label>
+      <label className="text-xs uppercase tracking-wide text-fg-muted">{label}</label>
       <input
         type={type}
         required={required}
@@ -85,12 +85,12 @@ function Field({ label, value, setter, type = 'text', required, autoComplete, pl
         onChange={(e) => setter(e.target.value)}
         autoComplete={autoComplete}
         placeholder={placeholder}
-        className={`w-full p-2 border rounded-md focus:outline-none focus:border-amber-700 ${
-          error ? 'border-red-300' : 'border-amber-200'
+        className={`w-full p-2 border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle ${
+          error ? 'border-red-300 dark:border-red-500/30' : 'border-border'
         }`}
       />
-      {hint && !error && <div className="text-xs text-amber-500 mt-0.5">{hint}</div>}
-      {error && <div className="text-xs text-red-600 mt-0.5">{error}</div>}
+      {hint && !error && <div className="text-xs text-fg-subtle mt-0.5">{hint}</div>}
+      {error && <div className="text-xs text-red-600 mt-0.5 dark:text-red-400">{error}</div>}
     </div>
   );
 }

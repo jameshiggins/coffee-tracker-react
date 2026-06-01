@@ -1,24 +1,34 @@
+import { lazy, Suspense } from 'react';
 import { NavLink, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
-import MapPage from './pages/MapPage.jsx';
-import RoastersPage from './pages/RoastersPage.jsx';
-import BeansPage from './pages/BeansPage.jsx';
-import TastingPermalink from './pages/TastingPermalink.jsx';
-import UserProfile from './pages/UserProfile.jsx';
-import AuthCallback from './pages/AuthCallback.jsx';
-import MyTastings from './pages/MyTastings.jsx';
-import Wishlist from './pages/Wishlist.jsx';
-import SignIn from './pages/SignIn.jsx';
-import SignUp from './pages/SignUp.jsx';
-import ForgotPassword from './pages/ForgotPassword.jsx';
-import ResetPassword from './pages/ResetPassword.jsx';
-import Verified from './pages/Verified.jsx';
-import Privacy from './pages/Privacy.jsx';
-import Terms from './pages/Terms.jsx';
+
+// Route-level code splitting (perf): each page is its own chunk, fetched on
+// navigation rather than up front. The big win is the map — Leaflet +
+// markercluster are heavy and only MapPage's subtree imports them, so this
+// keeps that weight off the /beans and /roasters routes entirely. The shell
+// (header/footer/providers below) stays eagerly imported so the chrome paints
+// immediately while the active page chunk streams in behind a Suspense
+// fallback.
+const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+const RoastersPage = lazy(() => import('./pages/RoastersPage.jsx'));
+const BeansPage = lazy(() => import('./pages/BeansPage.jsx'));
+const TastingPermalink = lazy(() => import('./pages/TastingPermalink.jsx'));
+const UserProfile = lazy(() => import('./pages/UserProfile.jsx'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback.jsx'));
+const MyTastings = lazy(() => import('./pages/MyTastings.jsx'));
+const Wishlist = lazy(() => import('./pages/Wishlist.jsx'));
+const SignIn = lazy(() => import('./pages/SignIn.jsx'));
+const SignUp = lazy(() => import('./pages/SignUp.jsx'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
+const Verified = lazy(() => import('./pages/Verified.jsx'));
+const Privacy = lazy(() => import('./pages/Privacy.jsx'));
+const Terms = lazy(() => import('./pages/Terms.jsx'));
 import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
 import LocationChip from './components/LocationChip.jsx';
 import EmailVerificationBanner from './components/EmailVerificationBanner.jsx';
 import Logo from './components/Logo.jsx';
+import ThemeToggle from './components/ThemeToggle.jsx';
 
 export default function App() {
   return (
@@ -68,6 +78,13 @@ export default function App() {
         @supports (height: 100dvh) {
           .map-hero { height: 72dvh; }
         }
+        /* mobile#7: a landscape phone is shorter than the 380px portrait floor,
+           so that floor makes the map taller than the whole screen and buries it
+           under the page chrome. On short, narrow viewports drop the floor and
+           let the dvh height size the map to the available screen instead. */
+        @media (max-width: 767px) and (max-height: 500px) {
+          .map-hero { min-height: 220px; }
+        }
         @media (min-width: 768px) {
           .map-hero { height: auto; min-height: 0; }
         }
@@ -85,14 +102,17 @@ export default function App() {
           reads as a native app, not a shrunk desktop site. The boxed
           1400px card + rounding + shadow returns at sm:+ unchanged. */}
       <div className="app-shell sm:p-5">
-        <div className="max-w-[1400px] mx-auto bg-white sm:rounded-2xl sm:shadow-2xl overflow-hidden">
+        <div className="max-w-[1400px] mx-auto bg-surface sm:rounded-2xl sm:shadow-2xl overflow-hidden">
           <header
             className="app-safe-top text-white px-4 py-5 sm:p-6 md:p-8"
             style={{ background: 'linear-gradient(135deg, #6F4E37 0%, #8B4513 100%)' }}
           >
             <div className="flex justify-between items-center gap-2 mb-3 sm:mb-4">
               <LocationChip />
-              <AuthCorner />
+              <div className="flex items-center gap-1 min-w-0">
+                <ThemeToggle />
+                <AuthCorner />
+              </div>
             </div>
             <div className="text-center">
               <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
@@ -108,6 +128,7 @@ export default function App() {
             {/* Mobile: horizontal scroll strip (no ragged wrap, no clipping);
                 sm:+ keeps the original centered wrap layout. */}
             <nav
+              aria-label="Primary"
               className="mt-4 sm:mt-5 flex gap-2 justify-start sm:justify-center
                          flex-nowrap sm:flex-wrap overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0
                          [-ms-overflow-style:none] [scrollbar-width:none]
@@ -124,6 +145,7 @@ export default function App() {
           <EmailVerificationBanner />
 
           <main id="main">
+          <Suspense fallback={<div className="p-10 text-center text-fg-muted">Loading…</div>}>
           <Routes>
             <Route path="/" element={<MapPage />} />
             <Route path="/roasters" element={<RoastersPage />} />
@@ -145,14 +167,38 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
           </Routes>
+          </Suspense>
           </main>
 
-          <footer className="app-safe-bottom border-t border-amber-100 mt-6 px-4 sm:px-6 py-4 text-xs text-amber-600 flex justify-between items-center flex-wrap gap-2">
-            <span>© 2026 Roastmap</span>
-            <span className="flex gap-2">
-              <Link to="/privacy" className="hover:text-amber-800 hover:underline px-2 py-1.5 -my-1.5">Privacy</Link>
-              <Link to="/terms" className="hover:text-amber-800 hover:underline px-2 py-1.5 -my-1.5">Terms</Link>
-            </span>
+          <footer className="app-safe-bottom border-t border-border mt-6 px-4 sm:px-6 py-6 text-xs text-fg-muted">
+            <div className="max-w-6xl mx-auto flex flex-col gap-5 sm:flex-row sm:justify-between">
+              {/* Brand + tagline */}
+              <div className="max-w-xs">
+                <div className="font-semibold text-fg">Roastmap</div>
+                <p className="mt-1 leading-relaxed text-fg-muted">
+                  A directory of Canadian specialty-coffee roasters and the beans they're roasting right now.
+                </p>
+              </div>
+
+              {/* Link groups */}
+              <div className="flex gap-10">
+                <nav aria-label="Explore" className="flex flex-col gap-1">
+                  <span className="font-semibold text-fg-subtle uppercase tracking-wide text-[10px]">Explore</span>
+                  <Link to="/" className="hover:text-fg hover:underline py-1">Map</Link>
+                  <Link to="/roasters" className="hover:text-fg hover:underline py-1">Roasters</Link>
+                  <Link to="/beans" className="hover:text-fg hover:underline py-1">Beans</Link>
+                </nav>
+                <nav aria-label="About" className="flex flex-col gap-1">
+                  <span className="font-semibold text-fg-subtle uppercase tracking-wide text-[10px]">About</span>
+                  <Link to="/privacy" className="hover:text-fg hover:underline py-1">Privacy</Link>
+                  <Link to="/terms" className="hover:text-fg hover:underline py-1">Terms</Link>
+                </nav>
+              </div>
+            </div>
+
+            <div className="max-w-6xl mx-auto mt-5 pt-4 border-t border-border">
+              <span>© 2026 Roastmap</span>
+            </div>
           </footer>
         </div>
       </div>

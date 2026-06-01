@@ -35,9 +35,9 @@ export default function ResetPassword() {
   if (!token || !email) {
     return (
       <div className="p-10 text-center">
-        <h2 className="text-2xl font-bold text-red-700">Invalid reset link</h2>
-        <p className="text-amber-700 mt-2">Request a new reset email.</p>
-        <Link to="/forgot-password" className="text-amber-800 underline mt-4 inline-block">Send a new link</Link>
+        <h2 className="text-2xl font-bold text-red-700 dark:text-red-400">Invalid reset link</h2>
+        <p className="text-fg-muted mt-2">Request a new reset email.</p>
+        <Link to="/forgot-password" className="text-accent underline mt-4 inline-block">Send a new link</Link>
       </div>
     );
   }
@@ -45,9 +45,9 @@ export default function ResetPassword() {
   if (done) {
     return (
       <div className="p-10 text-center">
-        <h2 className="text-2xl font-bold text-amber-900">Password updated</h2>
-        <p className="text-amber-700 mt-2">You can now sign in with your new password.</p>
-        <Link to="/sign-in" className="bg-amber-800 hover:bg-amber-900 text-white px-5 py-2 rounded-lg mt-4 inline-block">
+        <h2 className="text-2xl font-bold text-fg">Password updated</h2>
+        <p className="text-fg-muted mt-2">You can now sign in with your new password.</p>
+        <Link to="/sign-in" className="bg-accent hover:bg-accent-hover text-accent-fg px-5 py-2 rounded-lg mt-4 inline-block">
           Sign in
         </Link>
       </div>
@@ -56,25 +56,25 @@ export default function ResetPassword() {
 
   return (
     <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold text-amber-900 mb-4">Set a new password</h1>
-      <p className="text-sm text-amber-700 mb-3">For <strong>{email}</strong></p>
-      <form onSubmit={submit} className="space-y-3 bg-white p-5 rounded-xl border border-amber-100 shadow-sm">
+      <h1 className="text-2xl font-bold text-fg mb-4">Set a new password</h1>
+      <p className="text-sm text-fg-muted mb-3">For <strong>{email}</strong></p>
+      <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
         <div>
-          <label className="text-xs uppercase tracking-wide text-amber-700">New password</label>
+          <label className="text-xs uppercase tracking-wide text-fg-muted">New password</label>
           <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
                  autoComplete="new-password" minLength={8}
-                 className="w-full p-2 border border-amber-200 rounded-md focus:outline-none focus:border-amber-700" />
-          <div className="text-xs text-amber-500 mt-0.5">At least 8 characters.</div>
+                 className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
+          <div className="text-xs text-fg-subtle mt-0.5">At least 8 characters.</div>
         </div>
         <div>
-          <label className="text-xs uppercase tracking-wide text-amber-700">Confirm password</label>
+          <label className="text-xs uppercase tracking-wide text-fg-muted">Confirm password</label>
           <input type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)}
                  autoComplete="new-password"
-                 className="w-full p-2 border border-amber-200 rounded-md focus:outline-none focus:border-amber-700" />
+                 className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
         </div>
-        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{error}</div>}
         <button type="submit" disabled={submitting}
-                className="w-full bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white py-2 rounded-md font-medium">
+                className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
           {submitting ? 'Updating…' : 'Set password'}
         </button>
       </form>
