@@ -42,39 +42,55 @@ export function inStockUniverseOf(beans, showHistorical) {
   return beans.filter((b) => !b.is_removed && (showHistorical || isCoffeeInStock(b)));
 }
 
-// ---- filter pipeline ----
-// Multi-select fields are OR-within-field, AND-across-fields. So
-// country=Ethiopia,Colombia AND process=natural means
-// "Ethiopia OR Colombia, that is natural".
-export function filterAndSortBeans(beans, { filters, sort, location, showHistorical, similarSeedId } = {}) {
+// A fully-empty filter set, used as the default when no filters are active
+// (so callers like buildFilterOptions can be invoked with just `beans`).
+const EMPTY_FILTERS = {
+  q: '', country: [], process: [], roast: [], varietal: [],
+  note: [], elevation: [], cpg: [], blend: '', roaster: '',
+};
+
+const NO_EXCEPT = new Set();
+
+// ---- structured-filter predicates ----
+// The OR-within-field, AND-across-fields core, shared by the visible-list
+// pipeline AND the option cascade so the two can never drift. `except` names
+// one dimension to SKIP — buildFilterOptions uses it to compute a dropdown's
+// availability against every *other* active filter (faceted-search rule), so
+// each option reflects how many beans you'd get if you added it.
+//
+// Free-text `q` and the similar-to seed are deliberately NOT applied here:
+// q is orthogonal full-text (re-deriving every dropdown per keystroke is
+// jumpy), and similar-mode is a separate browse surface. filterAndSortBeans
+// layers those on after.
+function applyStructuredFilters(beans, filters, { showHistorical, except = NO_EXCEPT } = {}) {
   let list = beans;
 
   // Default: show only currently-buyable. Historical = soft-removed
   // ("no longer sold") OR currently sold-out across all variants.
   if (!showHistorical) list = list.filter((b) => !b.is_removed && isCoffeeInStock(b));
 
-  if (filters.roaster) {
+  if (!except.has('roaster') && filters.roaster) {
     list = list.filter((b) => b.roaster?.slug === filters.roaster);
   }
-  if (filters.country.length) {
+  if (!except.has('country') && filters.country.length) {
     list = list.filter((b) => filters.country.includes(b.country));
   }
-  if (filters.process.length) {
+  if (!except.has('process') && filters.process.length) {
     list = list.filter((b) => filters.process.includes(normalize(b.process)));
   }
-  if (filters.roast.length) {
+  if (!except.has('roast') && filters.roast.length) {
     list = list.filter((b) => filters.roast.includes(normalize(b.roast_level)));
   }
-  if (filters.varietal.length) {
+  if (!except.has('varietal') && filters.varietal.length) {
     list = list.filter((b) => filters.varietal.includes(normalize(b.varietal)));
   }
-  if (filters.elevation.length) {
+  if (!except.has('elevation') && filters.elevation.length) {
     list = list.filter((b) => {
       const tier = elevationTier(b.elevation_meters);
       return tier !== null && filters.elevation.includes(tier);
     });
   }
-  if (filters.cpg.length) {
+  if (!except.has('cpg') && filters.cpg.length) {
     // Reuse cheapestCpg (reference-variant ¢/g) so this agrees with the
     // "Cheapest ¢/g" sort and the card prices. Beans with no priceable
     // variant (null ¢/g) drop out while the filter is active.
@@ -83,10 +99,11 @@ export function filterAndSortBeans(beans, { filters, sort, location, showHistori
       return tier !== null && filters.cpg.includes(tier);
     });
   }
-  if (filters.blend === 'single-origin') list = list.filter((b) => !b.is_blend);
-  if (filters.blend === 'blend')         list = list.filter((b) =>  b.is_blend);
-
-  if (filters.note.length) {
+  if (!except.has('blend')) {
+    if (filters.blend === 'single-origin') list = list.filter((b) => !b.is_blend);
+    else if (filters.blend === 'blend')    list = list.filter((b) =>  b.is_blend);
+  }
+  if (!except.has('note') && filters.note.length) {
     // AND across selected notes (substring match within each). Selecting
     // chocolate + floral means "must have both chocolate AND floral" —
     // this is a precision tool, not a recall tool. Substring is fine
@@ -97,6 +114,16 @@ export function filterAndSortBeans(beans, { filters, sort, location, showHistori
       return needles.every((n) => hay.includes(n));
     });
   }
+
+  return list;
+}
+
+// ---- filter pipeline ----
+// Multi-select fields are OR-within-field, AND-across-fields. So
+// country=Ethiopia,Colombia AND process=natural means
+// "Ethiopia OR Colombia, that is natural".
+export function filterAndSortBeans(beans, { filters, sort, location, showHistorical, similarSeedId } = {}) {
+  let list = applyStructuredFilters(beans, filters, { showHistorical });
 
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -122,91 +149,124 @@ export function filterAndSortBeans(beans, { filters, sort, location, showHistori
 }
 
 /**
- * Build every filter dropdown's option list from the in-stock universe so
- * dropdowns never offer values that have no matching beans. Counts are
- * shown in the dropdown so users can see how big a slice they'd get.
+ * Build every filter dropdown's option list. CASCADING (faceted search):
+ * each dropdown's options are derived from the beans that match every OTHER
+ * active filter — so picking a roaster narrows Region/Process/Roast/etc. to
+ * just what that roaster sells, and the counts show how big a slice each
+ * choice would yield. A dimension never constrains its own option list
+ * (multi-selects are OR-within-field, so you must still be able to add a
+ * sibling value), and any value you've already selected is kept in its menu
+ * even if other filters squeezed its count to 0 — so a checked box never
+ * silently disappears and you can always uncheck it.
+ *
+ *   beans          – the full flattened bean list (unfiltered)
+ *   filters        – current filter state (arrays for multi, strings for single)
+ *   showHistorical – include sold-out / discontinued in the universe
  */
-export function buildFilterOptions(inStockUniverse) {
+export function buildFilterOptions(beans, filters = EMPTY_FILTERS, showHistorical = false) {
+  // Subset matching all active filters EXCEPT the named dimension.
+  const subsetFor = (key) =>
+    applyStructuredFilters(beans, filters, { showHistorical, except: new Set([key]) });
+
   return {
-    originOptions: buildOriginOptions(inStockUniverse),
-    noteOptions: buildNoteOptions(inStockUniverse),
-    processOptions: buildProcessOptions(inStockUniverse),
-    roastOptions: buildRoastOptions(inStockUniverse),
-    varietalOptions: buildVarietalOptions(inStockUniverse),
-    elevationOptions: buildElevationOptions(inStockUniverse),
-    cpgOptions: buildCpgOptions(inStockUniverse),
-    roasterOptions: buildRoasterOptions(inStockUniverse),
+    originOptions:    buildOriginOptions(subsetFor('country'), filters.country),
+    noteOptions:      buildNoteOptions(subsetFor('note'), filters.note),
+    processOptions:   buildProcessOptions(subsetFor('process'), filters.process),
+    roastOptions:     buildRoastOptions(subsetFor('roast'), filters.roast),
+    varietalOptions:  buildVarietalOptions(subsetFor('varietal'), filters.varietal),
+    elevationOptions: buildElevationOptions(subsetFor('elevation')),
+    cpgOptions:       buildCpgOptions(subsetFor('cpg')),
+    roasterOptions:   buildRoasterOptions(subsetFor('roaster'), filters.roaster, beans),
   };
 }
 
-function buildOriginOptions(inStockUniverse) {
-  const counts = {};
-  for (const b of inStockUniverse) {
-    if (b.country) counts[b.country] = (counts[b.country] || 0) + 1;
-  }
-  return Object.entries(counts)
-    .map(([v, c]) => ({ value: v, label: countryName(v) || v, count: c }))
-    .sort((a, b) => b.count - a.count);
+/**
+ * Re-append any currently-selected values that the cascade filtered out of
+ * `list`, so a checked option stays visible (and uncheckable) in its own
+ * dropdown. `make` builds the option object for a kept value, given its real
+ * count in the current subset (0 if the value matches nothing right now).
+ */
+function appendKept(list, keep, counts, make) {
+  if (!keep || !keep.length) return list;
+  const have = new Set(list.map((o) => o.value));
+  const extra = keep.filter((v) => !have.has(v)).map((v) => make(v, counts[v] || 0));
+  return [...list, ...extra];
 }
 
-function buildNoteOptions(inStockUniverse) {
+function buildOriginOptions(subset, keep = []) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
+    if (b.country) counts[b.country] = (counts[b.country] || 0) + 1;
+  }
+  const list = Object.entries(counts)
+    .map(([v, c]) => ({ value: v, label: countryName(v) || v, count: c }))
+    .sort((a, b) => b.count - a.count);
+  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: countryName(v) || v, count: c }));
+}
+
+function buildNoteOptions(subset, keep = []) {
+  const counts = {};
+  for (const b of subset) {
     for (const n of splitTastingNotes(b.tasting_notes)) {
       const key = n.toLowerCase();
       counts[key] = (counts[key] || 0) + 1;
     }
   }
-  return Object.entries(counts)
+  const list = Object.entries(counts)
     .filter(([, c]) => c >= 2)  // hide one-offs to keep the list usable
     .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 60);
+  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: titleCase(v), count: c }));
 }
 
-function buildProcessOptions(inStockUniverse) {
+function buildProcessOptions(subset, keep = []) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const p = normalize(b.process);
     if (p) counts[p] = (counts[p] || 0) + 1;
   }
-  return Object.entries(counts)
+  const list = Object.entries(counts)
     .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
     .sort((a, b) => b.count - a.count);
+  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: titleCase(v), count: c }));
 }
 
-function buildRoastOptions(inStockUniverse) {
+function buildRoastOptions(subset, keep = []) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const r = normalize(b.roast_level);
     if (r) counts[r] = (counts[r] || 0) + 1;
   }
   // Force the natural light → medium → dark order rather than count order.
+  // Keep a selected roast listed even at count 0 so it stays uncheckable.
   const order = ['light', 'medium', 'medium-dark', 'dark', 'omni'];
   return order
-    .filter((r) => counts[r])
-    .map((r) => ({ value: r, label: titleCase(r), count: counts[r] }));
+    .filter((r) => counts[r] || keep.includes(r))
+    .map((r) => ({ value: r, label: titleCase(r), count: counts[r] || 0 }));
 }
 
-function buildVarietalOptions(inStockUniverse) {
+function buildVarietalOptions(subset, keep = []) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const v = normalize(b.varietal);
     if (v) counts[v] = (counts[v] || 0) + 1;
   }
-  return Object.entries(counts)
+  const list = Object.entries(counts)
     .filter(([, c]) => c >= 2)
     .map(([v, c]) => ({ value: v, label: titleCase(v), count: c }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 60);
+  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: titleCase(v), count: c }));
 }
 
-// Elevation tiers — count how many in-stock beans fall in each tier so
-// the user sees real availability before picking. Tiers with zero beans
-// are still listed (useful as "no high-altitude in stock right now" UX).
-function buildElevationOptions(inStockUniverse) {
+// Elevation tiers — count how many beans in the current subset fall in each
+// tier so the user sees real availability before picking. Tiers with zero
+// beans are still listed (the fixed ladder reads better whole, and "no
+// high-altitude right now" is itself useful UX).
+function buildElevationOptions(subset) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const t = elevationTier(b.elevation_meters);
     if (t) counts[t] = (counts[t] || 0) + 1;
   }
@@ -217,12 +277,12 @@ function buildElevationOptions(inStockUniverse) {
   }));
 }
 
-// ¢/g tiers — count how many in-stock beans land in each price band,
-// using the same reference-variant ¢/g as the "Cheapest ¢/g" sort so
+// ¢/g tiers — count how many beans in the current subset land in each price
+// band, using the same reference-variant ¢/g as the "Cheapest ¢/g" sort so
 // the numbers agree with what the cards show. Empty tiers stay listed.
-function buildCpgOptions(inStockUniverse) {
+function buildCpgOptions(subset) {
   const counts = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const t = cpgTier(cheapestCpg(b));
     if (t) counts[t] = (counts[t] || 0) + 1;
   }
@@ -236,13 +296,20 @@ function buildCpgOptions(inStockUniverse) {
 // Roaster picker — single-select (mirrors the ?roaster=slug deep-link
 // the map uses). Alphabetical, not by count: you come here to find a
 // *specific* roaster, so a scannable A→Z list beats a popularity sort.
-function buildRoasterOptions(inStockUniverse) {
+// A selected roaster is kept listed even if other filters zero it out, so
+// the dropdown button can still show its name (label recovered from the
+// full bean list since it may be absent from the filtered subset).
+function buildRoasterOptions(subset, keepSlug = '', allBeans = []) {
   const bySlug = {};
-  for (const b of inStockUniverse) {
+  for (const b of subset) {
     const r = b.roaster;
     if (!r?.slug) continue;
     if (!bySlug[r.slug]) bySlug[r.slug] = { value: r.slug, label: r.name, count: 0 };
     bySlug[r.slug].count += 1;
+  }
+  if (keepSlug && !bySlug[keepSlug]) {
+    const r = allBeans.find((b) => b.roaster?.slug === keepSlug)?.roaster;
+    if (r) bySlug[keepSlug] = { value: r.slug, label: r.name, count: 0 };
   }
   return Object.values(bySlug).sort((a, b) => a.label.localeCompare(b.label));
 }

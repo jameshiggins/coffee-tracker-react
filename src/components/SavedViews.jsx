@@ -67,7 +67,13 @@ export default function SavedViews({ currentQuery, hasActiveFilters, onApply, co
         <div
           role="menu"
           aria-label="Saved views"
-          className="absolute left-0 sm:left-auto sm:right-0 mt-1 bg-surface-elevated text-fg rounded-lg shadow-xl border border-border z-30 w-[min(20rem,calc(100vw-2.5rem))] py-1"
+          // Left-aligned to the trigger on every breakpoint: the button sits
+          // on the LEFT of the sort row, so a right-aligned panel (the old
+          // sm:right-0) extended left off the button and got clipped by the
+          // app-shell's overflow-hidden — you'd "only see half of it". Opening
+          // rightward keeps the full 20rem panel inside the card. z-40 clears
+          // the filter dropdowns' sm:z-30 so an open panel is never underlapped.
+          className="absolute left-0 mt-1 bg-surface-elevated text-fg rounded-lg shadow-xl border border-border z-40 w-[min(20rem,calc(100vw-2.5rem))] py-1"
         >
           {views.length === 0 ? (
             <p className="px-3 py-3 text-sm text-fg-subtle italic">

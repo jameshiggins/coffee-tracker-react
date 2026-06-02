@@ -159,17 +159,18 @@ export default function BeansPage() {
     return roasters.find((r) => r.slug === filters.roaster) ?? null;
   }, [filters.roaster, roasters]);
 
-  // Filter-bar option lists. Built from the in-stock universe so dropdowns
-  // never offer values that have no matching beans. Counts shown in the
-  // dropdown so users can see how big a slice they'd get.
-  const inStockUniverse = useMemo(
-    () => inStockUniverseOf(beans, showHistorical),
-    [beans, showHistorical]
-  );
+  // Filter-bar option lists. CASCADING: each dropdown is derived from the
+  // beans matching every OTHER active filter, so the choices (and their
+  // counts) reflect the current subset — pick a roaster and Region/Process/
+  // etc. collapse to just what that roaster sells. Logic lives in the
+  // unit-tested utils/beanDirectory module.
   const {
     originOptions, noteOptions, processOptions, roastOptions,
     varietalOptions, elevationOptions, cpgOptions, roasterOptions,
-  } = useMemo(() => buildFilterOptions(inStockUniverse), [inStockUniverse]);
+  } = useMemo(
+    () => buildFilterOptions(beans, filters, showHistorical),
+    [beans, filters, showHistorical]
+  );
 
   // BeanCard chip-click bridge. Multi-fields TOGGLE the value (add if
   // missing, remove if already there); single-fields REPLACE.

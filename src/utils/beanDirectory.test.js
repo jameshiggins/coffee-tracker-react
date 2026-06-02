@@ -333,6 +333,90 @@ describe('buildFilterOptions', () => {
     const { roasterOptions } = buildFilterOptions(beans);
     expect(roasterOptions.map((o) => o.label)).toEqual(['Alpha', 'Zebra']);
   });
+
+  it('ignores out-of-stock beans by default', () => {
+    const beans = [
+      mkBean({ id: 1, country: 'Ethiopia' }),
+      mkBean({ id: 2, country: 'Kenya', variants: [mkVariant({ in_stock: false })] }),
+    ];
+    const { originOptions } = buildFilterOptions(beans, mkFilters(), false);
+    expect(originOptions.map((o) => o.value)).toEqual(['Ethiopia']);
+  });
+});
+
+/* ----------------- buildFilterOptions: cascading (faceted) ----------------- */
+
+describe('buildFilterOptions — cascading', () => {
+  it('selecting a roaster narrows origin options to that roaster (the 49th/Ethiopia case)', () => {
+    // Roaster A sells Colombia + Kenya; only roaster B sells Ethiopia. With
+    // A selected, Ethiopia must NOT be offered in the Region dropdown.
+    const beans = [
+      mkBean({ id: 1, roaster: { slug: 'a', name: 'A' }, country: 'Colombia' }),
+      mkBean({ id: 2, roaster: { slug: 'a', name: 'A' }, country: 'Kenya' }),
+      mkBean({ id: 3, roaster: { slug: 'b', name: 'B' }, country: 'Ethiopia' }),
+    ];
+    const { originOptions } = buildFilterOptions(beans, mkFilters({ roaster: 'a' }), false);
+    expect(originOptions.map((o) => o.value)).toEqual(['Colombia', 'Kenya']);
+    expect(originOptions.find((o) => o.value === 'Ethiopia')).toBeUndefined();
+  });
+
+  it('counts reflect the filtered subset, not the whole catalog', () => {
+    const beans = [
+      mkBean({ id: 1, roaster: { slug: 'a', name: 'A' }, country: 'Colombia' }),
+      mkBean({ id: 2, roaster: { slug: 'a', name: 'A' }, country: 'Colombia' }),
+      mkBean({ id: 3, roaster: { slug: 'b', name: 'B' }, country: 'Colombia' }),
+    ];
+    const { originOptions } = buildFilterOptions(beans, mkFilters({ roaster: 'a' }), false);
+    expect(originOptions).toEqual([{ value: 'Colombia', label: 'Colombia', count: 2 }]);
+  });
+
+  it('a dimension does not constrain its own options (so you can OR-add siblings)', () => {
+    const beans = [
+      mkBean({ id: 1, country: 'Ethiopia' }),
+      mkBean({ id: 2, country: 'Colombia' }),
+    ];
+    const { originOptions } = buildFilterOptions(beans, mkFilters({ country: ['Ethiopia'] }), false);
+    expect(originOptions.map((o) => o.value).sort()).toEqual(['Colombia', 'Ethiopia']);
+  });
+
+  it('cross-dimension: selecting a country narrows the process options', () => {
+    const beans = [
+      mkBean({ id: 1, country: 'Ethiopia', process: 'Washed' }),
+      mkBean({ id: 2, country: 'Colombia', process: 'Natural' }),
+    ];
+    const { processOptions } = buildFilterOptions(beans, mkFilters({ country: ['Ethiopia'] }), false);
+    expect(processOptions.map((o) => o.value)).toEqual(['washed']);
+  });
+
+  it('keeps a selected value listed at count 0 when another filter zeroes it', () => {
+    // Roaster A has only Washed; user has also selected process=Natural.
+    // Natural must stay in the Process menu (count 0) so it can be unchecked.
+    const beans = [
+      mkBean({ id: 1, roaster: { slug: 'a', name: 'A' }, process: 'Washed' }),
+      mkBean({ id: 2, roaster: { slug: 'b', name: 'B' }, process: 'Natural' }),
+    ];
+    const { processOptions } = buildFilterOptions(
+      beans, mkFilters({ roaster: 'a', process: ['natural'] }), false
+    );
+    const byVal = Object.fromEntries(processOptions.map((o) => [o.value, o.count]));
+    expect(byVal.washed).toBe(1);
+    expect(byVal.natural).toBe(0);
+  });
+
+  it('keeps a selected roaster listed (with its name) even when zeroed by another filter', () => {
+    const beans = [
+      mkBean({ id: 1, country: 'Ethiopia', roaster: { slug: 'a', name: 'Alpha' } }),
+      mkBean({ id: 2, country: 'Colombia', roaster: { slug: 'b', name: 'Bravo' } }),
+    ];
+    const { roasterOptions } = buildFilterOptions(
+      beans, mkFilters({ country: ['Ethiopia'], roaster: 'b' }), false
+    );
+    const bravo = roasterOptions.find((o) => o.value === 'b');
+    expect(bravo).toBeTruthy();
+    expect(bravo.label).toBe('Bravo'); // name recovered from full bean list
+    expect(bravo.count).toBe(0);
+    expect(roasterOptions.find((o) => o.value === 'a').count).toBe(1);
+  });
 });
 
 /* ----------------- price helpers ----------------- */
