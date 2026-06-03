@@ -59,6 +59,12 @@ export default function ClusterLayer({ markers }) {
 
       const marker = L.marker([r.latitude, r.longitude], {
         icon: beanIcon({ rotation }),
+        // a11y: Leaflet renders markers as keyboard-focusable role="button"
+        // elements; without a name the "aria-command-name" audit fails and
+        // screen readers announce nothing. The title becomes the accessible
+        // name (and a hover tooltip); alt covers the img-icon case.
+        title: r.name,
+        alt: r.name,
       });
 
       // Pre-render the popup HTML once per marker. MemoryRouter provides

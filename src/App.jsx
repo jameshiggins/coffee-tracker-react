@@ -3,12 +3,18 @@ import { NavLink, Routes, Route, Link, Navigate, useParams } from 'react-router-
 
 // Route-level code splitting (perf): each page is its own chunk, fetched on
 // navigation rather than up front. The big win is the map — Leaflet +
-// markercluster are heavy and only MapPage's subtree imports them, so this
-// keeps that weight off the /beans and /roasters routes entirely. The shell
-// (header/footer/providers below) stays eagerly imported so the chrome paints
-// immediately while the active page chunk streams in behind a Suspense
-// fallback.
-const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+// markercluster are heavy, but they now live in a LeafletMap chunk that
+// MapPage lazy-loads behind a facade, so that weight is off every route until
+// the visitor activates the map. The shell (header/footer/providers below)
+// stays eagerly imported so the chrome paints immediately while the active
+// page chunk streams in behind a Suspense fallback.
+//
+// MapPage itself is imported EAGERLY (not lazy): it's the landing route ("/"),
+// and without Leaflet it's only ~4 KB gzip. Lazy-loading it would add a chunk
+// round-trip inside the LCP path (the placeholder paints a beat after the
+// shell); eager import lets the landing content paint with the shell for the
+// best LCP. The heavy LeafletMap chunk stays lazy regardless.
+import MapPage from './pages/MapPage.jsx';
 const RoastersPage = lazy(() => import('./pages/RoastersPage.jsx'));
 const BeansPage = lazy(() => import('./pages/BeansPage.jsx'));
 const TastingPermalink = lazy(() => import('./pages/TastingPermalink.jsx'));
@@ -145,7 +151,10 @@ export default function App() {
           <EmailVerificationBanner />
 
           <main id="main">
-          <Suspense fallback={<div className="p-10 text-center text-fg-muted">Loading…</div>}>
+          {/* Reserve a tall min-height while the route chunk streams in so the
+              footer doesn't paint high and then jump down when the page mounts
+              (this lazy-route collapse was the dominant CLS contributor). */}
+          <Suspense fallback={<div className="min-h-[80vh] p-10 text-center text-fg-muted">Loading…</div>}>
           <Routes>
             <Route path="/" element={<MapPage />} />
             <Route path="/roasters" element={<RoastersPage />} />

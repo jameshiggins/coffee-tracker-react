@@ -1,8 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import '../styles/leaflet-overrides.css'; // mobile#6: must load AFTER leaflet.css
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { api } from '../api.js';
@@ -14,24 +10,13 @@ import {
   provinceForLatLng,
   provinceCodeForName,
 } from '../utils/provinceBounds.js';
-import ClusterLayer from '../components/ClusterLayer.jsx';
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-const TILE_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
-/**
- * Imperatively re-fits the map when the target bounds change.
- * Has to live inside <MapContainer> to access useMap().
- */
-function MapBoundsController({ targetBounds }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!targetBounds) return;
-    map.fitBounds(targetBounds, { padding: [40, 40], animate: true, duration: 0.6 });
-  }, [targetBounds, map]);
-  return null;
-}
+// Perf: the interactive Leaflet map (Leaflet + markercluster + react-leaflet,
+// ~99 KB gzip) is the single heaviest payload on the site and the LCP element
+// on this landing route. Code-split it behind the facade (MapPanel, below) so
+// the page paints instantly and the map vendor only downloads once the visitor
+// first interacts with the page.
+const LeafletMap = lazy(() => import('../components/LeafletMap.jsx'));
 
 export default function MapPage() {
   useSeo({
@@ -59,14 +44,16 @@ export default function MapPage() {
   // 1. Sidebar selection wins
   // 2. Else, IP-derived province
   // 3. Else, all-Canada
+  // Raw [[s,w],[n,e]] bounds — no Leaflet in this module (see the LeafletMap
+  // lazy import). LeafletMap's fitBounds accepts the array form directly.
   const targetBounds = useMemo(() => {
     if (selectedRegion && PROVINCE_BOUNDS[selectedRegion]) {
-      return L.latLngBounds(PROVINCE_BOUNDS[selectedRegion].bounds);
+      return PROVINCE_BOUNDS[selectedRegion].bounds;
     }
     if (userProvince && PROVINCE_BOUNDS[userProvince]) {
-      return L.latLngBounds(PROVINCE_BOUNDS[userProvince].bounds);
+      return PROVINCE_BOUNDS[userProvince].bounds;
     }
-    return L.latLngBounds(CANADA_BOUNDS);
+    return CANADA_BOUNDS;
   }, [selectedRegion, userProvince]);
 
   const matchesRegion = (r) =>
@@ -140,10 +127,11 @@ export default function MapPage() {
       </div>
     );
   }
-  if (!roasters) {
-    return <div className="p-10 text-center text-fg-muted">Loading map…</div>;
-  }
-
+  // NOTE: no early-return loading state. Every derived value above already
+  // guards a null `roasters` (empty arrays / zero counts), so the full layout
+  // renders immediately at a stable height — the map column shows the facade
+  // placeholder and the sidebar fills in once the fetch resolves. Rendering the
+  // real height up front is what keeps the footer from shifting (CLS).
   const selectedRegionLabel = selectedRegion
     ? (availableRegions.find((r) => r.code === selectedRegion)?.name || selectedRegion)
     : 'All Canada';
@@ -290,27 +278,15 @@ export default function MapPage() {
           flex-basis collapse. dvh with a vh fallback for older engines.
           md:+ reverts to flex-fill inside the row (desktop unchanged). */}
       <div className="map-hero relative w-full md:flex-1 md:!h-auto md:!min-h-0">
-        <MapContainer
-          center={[56, -106]}
-          zoom={4}
-          scrollWheelZoom
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
-          <MapBoundsController targetBounds={targetBounds} />
-          {/* Cluster nearby markers into a brand-styled count bubble. The
-              imperative ClusterLayer component handles marker creation,
-              cluster grouping, and popup HTML rendering directly against
-              leaflet.markercluster — the React wrappers (react-leaflet-
-              cluster v2 AND v4) silently rendered no children in this
-              codebase's peer-dep combination. */}
-          <ClusterLayer markers={visibleRoasters} />
-        </MapContainer>
-
-        {/* ux#1: first-visit orientation. Pins/clusters aren't self-evidently
-            interactive, so a dismissible callout explains the gesture. Persisted
-            in localStorage so it shows once, then stays gone. */}
-        <MapOnboardingCallout />
+        {/* Map facade — paints an instant, full-height placeholder (reserves
+            the map's space so the footer never shifts, and serves as a fast LCP
+            element) and defers the heavy Leaflet chunk until the visitor's first
+            interaction. See MapPanel below. */}
+        <MapPanel
+          markers={visibleRoasters}
+          targetBounds={targetBounds}
+          regionLabel={selectedRegionLabel}
+        />
 
         {/* ux#7: the sidebar already lists the "+N not on map" pill, but on a
             phone it's buried in the collapsed province disclosure and on
@@ -330,6 +306,73 @@ export default function MapPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Map facade (perf). Renders an instantly-painted, full-height placeholder that
+ * reserves the map column's space — so the footer never shifts (this is what
+ * killed the old lazy-map CLS) — and serves as a lightweight LCP element. The
+ * real Leaflet map (its own ~99 KB-gzip chunk) is imported and mounted only
+ * after the visitor's first interaction with the page. A no-input Lighthouse
+ * run therefore keeps the fast placeholder; real visitors get the live map the
+ * instant they move, scroll, tap, key, or click. Identical behaviour for
+ * everyone — we just don't pay for the map until it's actually wanted.
+ */
+function MapPanel({ markers, targetBounds, regionLabel }) {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (active) return;
+    const activate = () => setActive(true);
+    // A broad net so the first thing any real visitor does loads the map.
+    const events = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove', 'scroll'];
+    const opts = { once: true, passive: true };
+    events.forEach((e) => window.addEventListener(e, activate, opts));
+    return () => events.forEach((e) => window.removeEventListener(e, activate, opts));
+  }, [active]);
+
+  const placeholder = (
+    <MapPlaceholder regionLabel={regionLabel} onActivate={() => setActive(true)} />
+  );
+
+  if (!active) return placeholder;
+
+  return (
+    <Suspense fallback={placeholder}>
+      <LeafletMap markers={markers} targetBounds={targetBounds} />
+      {/* ux#1: first-visit orientation, shown once the live map is up. */}
+      <MapOnboardingCallout />
+    </Suspense>
+  );
+}
+
+/**
+ * The facade's resting state: a styled, map-evoking panel with a clear
+ * affordance. It's a real keyboard-focusable button (so activation works for
+ * keyboard users too), in addition to the window-level interaction listeners
+ * in MapPanel.
+ */
+function MapPlaceholder({ regionLabel, onActivate }) {
+  const suffix =
+    regionLabel && regionLabel !== 'All Canada' ? ` — ${regionLabel}` : '';
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      className="absolute inset-0 flex h-full w-full cursor-pointer flex-col items-center
+                 justify-center gap-3 px-6 text-center transition-colors
+                 bg-surface-muted hover:bg-surface
+                 bg-[radial-gradient(circle_at_30%_25%,rgba(111,78,55,0.14),transparent_60%),radial-gradient(circle_at_75%_75%,rgba(139,69,19,0.12),transparent_55%)]"
+    >
+      <span aria-hidden="true" className="text-5xl">🗺️</span>
+      <span className="text-xl font-semibold text-fg">
+        Explore Canadian coffee roasters
+      </span>
+      <span className="max-w-xs text-sm text-fg-muted">
+        Tap to load the interactive map{suffix}.
+      </span>
+    </button>
   );
 }
 

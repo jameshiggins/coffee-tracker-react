@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Perf: warm the connection to the API (hit on first paint of every data
+         route) and pre-resolve DNS for the geo + map-tile hosts. The tile host
+         is only contacted once the visitor activates the map facade, so it's a
+         cheap dns-prefetch rather than a full (and otherwise unused) preconnect. -->
+    <link rel="preconnect" href="https://api.roastmap.ca" crossorigin />
+    <link rel="preconnect" href="https://ipapi.co" crossorigin />
+    <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
+    <link rel="dns-prefetch" href="https://b.basemaps.cartocdn.com" />
+    <link rel="dns-prefetch" href="https://c.basemaps.cartocdn.com" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="theme-color" content="#6f4326" />

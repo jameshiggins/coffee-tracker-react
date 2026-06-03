@@ -13,16 +13,20 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Split the heaviest third-party libs into their own long-lived,
-        // separately-cacheable chunks. Combined with the route-level lazy
-        // imports in App.jsx, `map-vendor` (Leaflet + markercluster +
-        // react-leaflet) is fetched only when the map route mounts, and
-        // `ui-vendor` (Radix + its Floating UI dep) only when a page that
-        // uses those primitives loads. App code churns far more often than
-        // these deps, so isolating them keeps repeat-visit cache hits high.
+        // Split Radix + Floating UI into a long-lived, separately-cacheable
+        // `ui-vendor` chunk, fetched only when a page that uses those
+        // primitives loads.
+        //
+        // NOTE: Leaflet is deliberately NOT a named manualChunk. A named
+        // vendor chunk reachable from the landing route gets hoisted by Vite
+        // into the entry HTML as `<link rel="modulepreload">` + a
+        // render-blocking `<link rel="stylesheet">` — which would eagerly pull
+        // the ~99 KB-gzip map vendor (and its CSS) on every visit, defeating
+        // the MapPage facade. Leaving Leaflet unnamed keeps it inside the async
+        // LeafletMap chunk, loaded via Vite's runtime preload helper only when
+        // the visitor actually activates the map.
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          if (id.includes('leaflet')) return 'map-vendor'; // matches react-leaflet + leaflet.markercluster
           if (id.includes('@radix-ui') || id.includes('@floating-ui')) return 'ui-vendor';
         },
       },
