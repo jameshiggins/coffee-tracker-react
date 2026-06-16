@@ -246,37 +246,40 @@ export default function RoastersPage() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* Geolocation as a suggestion, not an auto-sort: one tap orders by
-              distance; tap again (or pick a sort) to return to alphabetical. */}
-          {location && (
-            <button
-              type="button"
-              onClick={() => {
-                if (sort === 'distance') { setSort('name'); setDir('asc'); }
-                else { setSort('distance'); setDir('asc'); }
-              }}
-              aria-pressed={sort === 'distance'}
-              className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors ${
-                sort === 'distance'
-                  ? 'bg-accent-soft text-accent'
-                  : 'bg-surface-muted text-fg-muted hover:text-fg hover:bg-border'
-              }`}
-            >
-              <Icon name="pin" size={15} />
-              {sort === 'distance' ? 'Nearest first' : 'Sort by distance'}
-            </button>
-          )}
+              distance; tap again (or pick a sort) to return to alphabetical.
+              ALWAYS rendered (disabled until a location is known) so a
+              late-resolving IP location doesn't pop the chip in and shift the
+              layout — that pop-in was the page's main CLS contributor. */}
+          <button
+            type="button"
+            disabled={!location}
+            onClick={() => {
+              if (sort === 'distance') { setSort('name'); setDir('asc'); }
+              else { setSort('distance'); setDir('asc'); }
+            }}
+            aria-pressed={sort === 'distance'}
+            title={location ? undefined : 'Set your location in the top bar to sort by distance'}
+            className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              sort === 'distance'
+                ? 'bg-accent-soft text-accent'
+                : 'bg-surface-muted text-fg-muted hover:text-fg hover:bg-border'
+            }`}
+          >
+            <Icon name="pin" size={15} />
+            {sort === 'distance' ? 'Nearest first' : 'Sort by distance'}
+          </button>
           {allCountries.length > 1 && (
             <select value={country} onChange={(e) => setFilter('country', e.target.value)} aria-label="Filter by country" className={selectClass}>
               <option value="">All countries</option>
               {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
             </select>
           )}
-          {allRegions.length > 0 && (
-            <select value={region} onChange={(e) => setFilter('region', e.target.value)} aria-label="Filter by province" className={selectClass}>
-              <option value="">All provinces</option>
-              {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-          )}
+          {/* Province select — always rendered (options just populate once roaster
+              data loads) so it doesn't appear late and shift the row. */}
+          <select value={region} onChange={(e) => setFilter('region', e.target.value)} aria-label="Filter by province" className={selectClass}>
+            <option value="">All provinces</option>
+            {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
           <label className="inline-flex items-center gap-2 text-sm text-fg-muted cursor-pointer select-none min-h-[44px] px-1">
             <input
               type="checkbox"
