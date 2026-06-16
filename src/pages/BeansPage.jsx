@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { countryName } from '../utils/countries.js';
 import { useShowHistorical } from '../hooks/useShowHistorical.js';
@@ -11,6 +11,7 @@ import BeanGrid from '../components/BeanGrid.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import Icon from '../components/Icon.jsx';
 import { SkeletonBeanCard } from '../ui/Skeleton.jsx';
+import Toast from '../ui/Toast.jsx';
 import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList } from '../utils/beanFilters.js';
 import {
   filterAndSortBeans,
@@ -63,6 +64,11 @@ export default function BeansPage() {
   // Mobile-only: a floating "Filters" button that fades in once the inline
   // filter bar has scrolled away (mobile#4).
   const [showFilterFab, setShowFilterFab] = useState(false);
+  // Transient confirmation toast shown when a filter is added/removed, so the
+  // effect of picking a dropdown option is obvious (the active-filter chips
+  // can be below the fold / behind an open dropdown). See <Toast>.
+  const [toast, setToast] = useState(null);
+  const toastSeq = useRef(0);
 
   const { filters, setFilter, clearFilter, clearAll, activeFilterChips, params, setParams } =
     useDirectoryFilters({
@@ -173,6 +179,45 @@ export default function BeansPage() {
     [beans, filters, showHistorical]
   );
 
+  // Surface a small confirmation toast for a filter add/remove. A fresh
+  // sequence id per call re-keys <Toast> so a repeat action replays the pop
+  // instead of resetting the live one's timer.
+  const showToast = useCallback((kind, message) => {
+    toastSeq.current += 1;
+    setToast({ id: toastSeq.current, kind, message });
+  }, []);
+
+  // Apply a filter change AND confirm it with a toast. Shared by the filter
+  // dropdowns and the in-card chip toggles so every filter action gives the
+  // same visible feedback. Sort and the free-text search box deliberately
+  // bypass this and call setFilter directly — neither shows as a filter chip,
+  // and a toast on every search keystroke would be noise.
+  function applyFilter(key, value) {
+    const before = filters[key];
+    setFilter(key, value);
+
+    const label = LABELS[key] || key;
+    if (MULTI_KEYS.has(key)) {
+      const beforeArr = Array.isArray(before) ? before : [];
+      const afterArr = Array.isArray(value) ? value : [];
+      if (afterArr.length > beforeArr.length) {
+        const added = afterArr.find((v) => !beforeArr.includes(v));
+        showToast('added', `Added ${label}: ${labelForValue(key, added, roasters)}`);
+      } else if (afterArr.length < beforeArr.length) {
+        if (beforeArr.length - afterArr.length === 1) {
+          const removed = beforeArr.find((v) => !afterArr.includes(v));
+          showToast('removed', `Removed ${label}: ${labelForValue(key, removed, roasters)}`);
+        } else {
+          showToast('removed', `Cleared ${label} filter`);
+        }
+      }
+    } else if (value) {
+      showToast('added', `Added ${label}: ${labelForValue(key, value, roasters)}`);
+    } else {
+      showToast('removed', `Removed ${label} filter`);
+    }
+  }
+
   // BeanCard chip-click bridge. Multi-fields TOGGLE the value (add if
   // missing, remove if already there); single-fields REPLACE.
   function onChipClick(filterKey, value) {
@@ -185,10 +230,10 @@ export default function BeansPage() {
       const needle = targetKey === 'note' ? String(value).toLowerCase() : normalize(value);
       const hasIt = current.includes(needle);
       const next = hasIt ? current.filter((v) => v !== needle) : [...current, needle];
-      setFilter(targetKey, next);
+      applyFilter(targetKey, next);
     } else {
       const current = filters[targetKey];
-      setFilter(targetKey, current === value ? '' : value);
+      applyFilter(targetKey, current === value ? '' : value);
     }
   }
 
@@ -288,13 +333,13 @@ export default function BeansPage() {
             { value: 'single-origin', label: 'Single Origin' },
             { value: 'blend', label: 'Blend' },
           ]}
-          onPick={(v) => setFilter('blend', v)}
+          onPick={(v) => applyFilter('blend', v)}
         />
         <FilterDropdown
           label="Roaster"
           value={filters.roaster}
           options={roasterOptions}
-          onPick={(v) => setFilter('roaster', v)}
+          onPick={(v) => applyFilter('roaster', v)}
         />
         <FilterDropdown
           label="Roast"
@@ -302,7 +347,7 @@ export default function BeansPage() {
           multi
           value={filters.roast}
           options={roastOptions}
-          onPick={(v) => setFilter('roast', v)}
+          onPick={(v) => applyFilter('roast', v)}
         />
         <FilterDropdown
           label="Region"
@@ -310,7 +355,7 @@ export default function BeansPage() {
           multi
           value={filters.country}
           options={originOptions}
-          onPick={(v) => setFilter('country', v)}
+          onPick={(v) => applyFilter('country', v)}
         />
         <FilterDropdown
           label="Process"
@@ -318,7 +363,7 @@ export default function BeansPage() {
           multi
           value={filters.process}
           options={processOptions}
-          onPick={(v) => setFilter('process', v)}
+          onPick={(v) => applyFilter('process', v)}
         />
         <FilterDropdown
           label="Varietal"
@@ -326,7 +371,7 @@ export default function BeansPage() {
           multi
           value={filters.varietal}
           options={varietalOptions}
-          onPick={(v) => setFilter('varietal', v)}
+          onPick={(v) => applyFilter('varietal', v)}
         />
         <FilterDropdown
           label="Elevation"
@@ -334,21 +379,21 @@ export default function BeansPage() {
           multi
           value={filters.elevation}
           options={elevationOptions}
-          onPick={(v) => setFilter('elevation', v)}
+          onPick={(v) => applyFilter('elevation', v)}
         />
         <FilterDropdown
           label="Price ¢/g"
           multi
           value={filters.cpg}
           options={cpgOptions}
-          onPick={(v) => setFilter('cpg', v)}
+          onPick={(v) => applyFilter('cpg', v)}
         />
         <FilterDropdown
           label="Tasting note"
           multi
           value={filters.note}
           options={noteOptions}
-          onPick={(v) => setFilter('note', v)}
+          onPick={(v) => applyFilter('note', v)}
         />
         {/* Desktop search — hidden on mobile (the toggle row has its own). */}
         <label htmlFor="beans-search" className="sr-only">
@@ -489,6 +534,16 @@ export default function BeansPage() {
             </span>
           )}
         </button>
+      )}
+
+      {/* ---------- Filter add/remove confirmation toast ---------- */}
+      {toast && (
+        <Toast
+          key={toast.id}
+          kind={toast.kind}
+          message={toast.message}
+          onDismiss={() => setToast(null)}
+        />
       )}
     </div>
   );

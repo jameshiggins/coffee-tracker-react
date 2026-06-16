@@ -23,6 +23,7 @@ export { default as Dialog } from './Dialog.jsx';
 export { default as DropdownMenu } from './DropdownMenu.jsx';
 export { default as Popover } from './Popover.jsx';
 export { default as Skeleton, SkeletonBeanCard } from './Skeleton.jsx';
+export { default as Toast } from './Toast.jsx';
 
 // Re-exported so the build includes the showcase even though no live route
 // renders it. To eyeball the primitives, temporarily render <_Showcase />
