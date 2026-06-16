@@ -58,6 +58,7 @@ export default {
         accent:        'var(--color-accent)',
         'accent-hover':'var(--color-accent-hover)',
         'accent-fg':   'var(--color-accent-fg)',
+        'accent-soft': 'var(--color-accent-soft)',
 
         success:    'var(--color-success)',
         'success-fg': 'var(--color-success-fg)',

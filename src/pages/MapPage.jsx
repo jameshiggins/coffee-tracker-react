@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Icon from '../components/Icon.jsx';
 
 import { api } from '../api.js';
 import { useSeo } from '../hooks/useSeo.js';
@@ -200,17 +201,17 @@ export default function MapPage() {
       >
         <div className="flex w-full rounded-lg border border-border bg-surface p-1 gap-1">
           <Link
-            to="/"
+            to="/map"
             aria-current="page"
             className="flex-1 text-center text-sm font-semibold px-3 py-2.5 min-h-[44px] rounded-md bg-accent text-accent-fg inline-flex items-center justify-center gap-1.5"
           >
-            <span aria-hidden="true">🗺️</span> Map
+            <Icon name="map" size={16} /> Map
           </Link>
           <Link
-            to="/roasters"
+            to="/"
             className="flex-1 text-center text-sm font-semibold px-3 py-2.5 min-h-[44px] rounded-md text-fg-muted hover:bg-surface-muted inline-flex items-center justify-center gap-1.5"
           >
-            <span aria-hidden="true">📋</span> List
+            <Icon name="list" size={16} /> List
           </Link>
         </div>
       </nav>
@@ -300,7 +301,7 @@ export default function MapPage() {
                        border border-border-strong shadow-lg text-fg text-xs font-semibold
                        hover:bg-surface transition-colors"
           >
-            <span aria-hidden="true">📋</span>
+            <Icon name="list" size={15} />
             +{notOnMapCount} {notOnMapCount === 1 ? 'roaster' : 'roasters'} not on map
           </Link>
         )}
@@ -365,7 +366,7 @@ function MapPlaceholder({ regionLabel, onActivate }) {
                  bg-surface-muted hover:bg-surface
                  bg-[radial-gradient(circle_at_30%_25%,rgba(111,78,55,0.14),transparent_60%),radial-gradient(circle_at_75%_75%,rgba(139,69,19,0.12),transparent_55%)]"
     >
-      <span aria-hidden="true" className="text-5xl">🗺️</span>
+      <Icon name="map" size={44} className="text-accent" />
       <span className="text-xl font-semibold text-fg">
         Explore Canadian coffee roasters
       </span>
@@ -512,7 +513,7 @@ function MapOnboardingCallout() {
                  rounded-xl px-4 py-3 flex items-start gap-3"
       role="note"
     >
-      <span aria-hidden="true" className="text-lg leading-none mt-0.5">🗺️</span>
+      <Icon name="pin" size={20} className="mt-0.5 flex-shrink-0 text-accent" />
       <div className="flex-1 text-xs leading-relaxed">
         <p className="font-semibold text-sm text-fg mb-0.5">Find roasters near you</p>
         <p className="text-fg-muted">

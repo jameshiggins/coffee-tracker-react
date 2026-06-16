@@ -16,7 +16,7 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    <meta name="theme-color" content="#6f4326" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Roastmap — the map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
     <title>Roastmap — Canadian specialty coffee</title>
 
@@ -55,27 +55,30 @@
         }
       }
     </script>
-    <!-- Apply the saved/OS theme BEFORE first paint to avoid a light-mode
-         flash. Mirrors the logic in src/hooks/useTheme.js. -->
+    <!-- Apply the saved/OS theme BEFORE first paint to avoid a flash, and set a
+         theme-aware page-bg on <html> as the flash-of-unstyled fallback (the
+         body no longer carries an inline colour that would pin one theme).
+         Mirrors the tokens in src/styles/tokens.css + src/hooks/useTheme.js. -->
     <script>
       (function () {
         try {
           var s = localStorage.getItem('roastmap_theme');
           var dark = s ? s === 'dark'
             : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.style.backgroundColor = dark ? '#100c0a' : '#ece5da';
           if (dark) {
             document.documentElement.classList.add('dark');
             var m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', '#15100d');
+            if (m) m.setAttribute('content', '#1a1613');
           }
         } catch (e) {}
       })();
     </script>
   </head>
-  <!-- Body background (the desktop page frame) lives in src/styles/tokens.css
-       so it can flip with the dark-mode toggle. The inline color is a flash-of-
-       unstyled fallback before the bundle's CSS loads. -->
-  <body class="min-h-screen" style="background-color:#4a3024;">
+  <!-- The page-frame background lives in src/styles/tokens.css (theme-aware via
+       --page-bg-solid). The pre-paint fallback is set on <html> by the theme
+       script above, so the body carries no inline colour that would pin a theme. -->
+  <body class="min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

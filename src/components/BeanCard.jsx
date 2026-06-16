@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { formatBagWeight, labelContainsGrams } from '../utils/units';
@@ -7,6 +8,7 @@ import { splitTastingNotes } from '../utils/flavorColor.js';
 import { TONE_TRIOS, ROAST_TONES } from '../ui/tones.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
 import WishlistHeart from './WishlistHeart.jsx';
+import Icon from './Icon.jsx';
 import TastingForm from './TastingForm.jsx';
 import ReportTastingButton from './ReportTastingButton.jsx';
 
@@ -189,16 +191,17 @@ export default function BeanCard({
               </div>
             )}
 
-            {/* Aggregate rating + cheapest price + heart row */}
+            {/* Aggregate rating + cheapest price + heart row. The rating only
+                appears on the list when one EXISTS — an unrated bean shows
+                nothing here (no "no ratings yet" noise); expand the card to rate
+                it. Keeps the row balanced via justify-between either way. */}
             <div className="flex items-center justify-between gap-2 mt-3">
               <div className="flex items-center gap-2 text-xs">
-                {stars != null ? (
+                {stars != null && (
                   <>
                     <span className="text-amber-500 dark:text-amber-400">{formatStars(stars)}</span>
                     <span className="text-fg-muted">{stars.toFixed(1)} · {coffee.rating.count}</span>
                   </>
-                ) : (
-                  <span className="text-fg-subtle italic">No ratings yet</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -312,9 +315,9 @@ export default function BeanCard({
               {!showTastingForm && !savedMsg && (
                 <button
                   onClick={() => setShowTastingForm(true)}
-                  className="bg-green-700 hover:bg-green-800 text-white text-sm px-4 py-2 rounded-md"
+                  className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
                 >
-                  ☕ I tasted this
+                  <Icon name="cup" size={16} /> Add your tasting
                 </button>
               )}
               {savedMsg && (
@@ -358,7 +361,22 @@ export default function BeanCard({
                 {tastings.slice(0, 3).map((t) => <TastingRow key={t.id} t={t} />)}
               </div>
             </div>
-          ) : null}
+          ) : (
+            // Empty state: unlike the list (which stays quiet), the expanded view
+            // names the gap and points to the action — the signed-in "Add your
+            // tasting" button above, or a sign-in link for signed-out visitors.
+            <p className="text-sm text-fg-muted">
+              No tastings yet.{' '}
+              {user ? (
+                'Be the first to add one.'
+              ) : (
+                <>
+                  <Link to="/sign-in" className="font-medium text-accent hover:underline">Sign in</Link>{' '}
+                  to add the first tasting.
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 

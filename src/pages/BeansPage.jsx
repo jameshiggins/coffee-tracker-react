@@ -9,6 +9,7 @@ import { useDirectoryFilters } from '../hooks/useDirectoryFilters.js';
 import FilterDropdown from '../components/FilterDropdown.jsx';
 import BeanGrid from '../components/BeanGrid.jsx';
 import SavedViews from '../components/SavedViews.jsx';
+import Icon from '../components/Icon.jsx';
 import { SkeletonBeanCard } from '../ui/Skeleton.jsx';
 import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList } from '../utils/beanFilters.js';
 import {
@@ -520,7 +521,10 @@ function RoasterPanel({ roaster, onClear }) {
             </button>
           </div>
           {addressParts.length > 0 && (
-            <div className="text-sm text-fg-muted mt-1">📍 {addressParts.join(', ')}</div>
+            <div className="text-sm text-fg-muted mt-1 flex items-center gap-1.5">
+              <Icon name="pin" size={14} className="flex-shrink-0 text-fg-subtle" />
+              <span className="min-w-0 truncate">{addressParts.join(', ')}</span>
+            </div>
           )}
           {roaster.description && (
             <p className="text-sm text-fg mt-3 leading-relaxed line-clamp-3">{roaster.description}</p>
@@ -532,17 +536,17 @@ function RoasterPanel({ roaster, onClear }) {
               href={roaster.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-accent hover:bg-accent-hover text-accent-fg text-xs px-3 py-1.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-xs px-3 py-2 rounded-lg transition-colors"
             >
-              🌐 Visit roaster's site
+              <Icon name="externalLink" size={14} /> Visit roaster's site
             </a>
           )}
         </div>
       </div>
       {(roaster.shipping_cost != null || roaster.free_shipping_over != null || roaster.shipping_notes) && (
         <div className="mt-3 pt-3 border-t border-border text-xs text-fg-muted flex flex-wrap gap-4">
-          {roaster.shipping_cost != null && <span>📦 Shipping: <strong>${Number(roaster.shipping_cost).toFixed(2)}</strong></span>}
-          {roaster.free_shipping_over != null && <span>🎁 Free over: <strong>${Number(roaster.free_shipping_over).toFixed(2)}</strong></span>}
+          {roaster.shipping_cost != null && <span className="inline-flex items-center gap-1.5"><Icon name="truck" size={14} className="text-fg-subtle" /> Shipping: <strong className="text-fg">${Number(roaster.shipping_cost).toFixed(2)}</strong></span>}
+          {roaster.free_shipping_over != null && <span className="inline-flex items-center gap-1.5"><Icon name="tag" size={14} className="text-fg-subtle" /> Free over: <strong className="text-fg">${Number(roaster.free_shipping_over).toFixed(2)}</strong></span>}
           {roaster.shipping_notes && <span className="text-fg-subtle italic line-clamp-1 max-w-md">{roaster.shipping_notes}</span>}
         </div>
       )}

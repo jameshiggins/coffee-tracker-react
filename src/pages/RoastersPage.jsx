@@ -1,6 +1,7 @@
-// RoastersPage = the dedicated /roasters grid view (roaster directory with
-// search, sort, and the show-out-of-stock toggle). The live map lives
-// separately at / in MapPage.
+// RoastersPage = the directory list and the app's landing route ("/"). The
+// roaster list is the product's focus: a prominent search, province/country
+// filters, and a stock toggle over modern cards (mobile) / an editorial table
+// (desktop). The live Leaflet map is a secondary view at /map.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,13 +15,10 @@ import { useDirectoryFilters } from '../hooks/useDirectoryFilters.js';
 import { useSeo } from '../hooks/useSeo.js';
 import Skeleton from '../ui/Skeleton.jsx';
 import Badge from '../ui/Badge.jsx';
+import Icon from '../components/Icon.jsx';
 
 const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
 
-// RoastersPage filters are all single-select (free-text search + one region
-// + one country). Shared with /beans via useDirectoryFilters so the URL
-// encoding, clear semantics, and shareable links are identical. Module-scope
-// so the hook's memo identity stays stable across renders.
 const ROASTER_SINGLE_KEYS = ['q', 'region', 'country'];
 const NO_MULTI_KEYS = new Set();
 
@@ -35,6 +33,48 @@ function priceRange(roaster, { includeOutOfStock }) {
   return { min: Math.min(...cpgs), max: Math.max(...cpgs) };
 }
 
+// Colour the ¢/g signal: green = great value, amber = mid, red = premium.
+// Uses text-tuned shades per theme (NOT the semantic status tokens, whose dark
+// values are tuned as badge BACKGROUNDS and fall below 4.5:1 as text on the
+// dark card). Both light (-700) and dark (-400) variants clear WCAG AA.
+function cpgClass(min) {
+  if (min == null) return 'text-fg-subtle';
+  if (min < 6.5) return 'text-emerald-700 dark:text-emerald-400';
+  if (min < 7.5) return 'text-amber-700 dark:text-amber-400';
+  return 'text-red-700 dark:text-red-400';
+}
+
+function priceLabel(range) {
+  if (range.min == null) return '—';
+  return range.min === range.max
+    ? `${range.min.toFixed(1)}¢/g`
+    : `${range.min.toFixed(1)}–${range.max.toFixed(1)}¢/g`;
+}
+
+function shipLabel(r) {
+  if (r.shipping_cost == null) return null;
+  return Number(r.shipping_cost) === 0 ? 'Free ship' : `$${Number(r.shipping_cost).toFixed(2)} ship`;
+}
+
+// Roaster avatar — the scraped favicon, or initials on a soft accent tile.
+function RoasterAvatar({ roaster }) {
+  const initials = (roaster.name || '?').replace(/[^a-zA-Z ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  return (
+    <span className="relative inline-flex w-10 h-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent text-xs font-bold overflow-hidden">
+      <span aria-hidden="true">{initials}</span>
+      {roaster.favicon_url && (
+        <img
+          src={roaster.favicon_url}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-contain bg-surface"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+    </span>
+  );
+}
+
 export default function RoastersPage() {
   useSeo({
     title: 'Roasters',
@@ -46,21 +86,16 @@ export default function RoastersPage() {
   const { location } = useUserLocation();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
-  // Filters live in the URL (shared encoding with /beans). q = free-text
-  // search; region/country are also the deep-link keys MapPage's "+N not on
-  // map" pill targets, so they round-trip as shareable links and update the
-  // selects live if the URL changes.
   const { filters, setFilter, clearAll } = useDirectoryFilters({
     singleKeys: ROASTER_SINGLE_KEYS,
     multiKeys: NO_MULTI_KEYS,
   });
   const { q: search, region, country } = filters;
-  const [sort, setSort] = useState(location ? 'distance' : 'name');
+  // Default to alphabetical (by name). Detected geolocation does NOT silently
+  // re-sort the list — it's surfaced as a one-tap "Sort by distance" suggestion
+  // (the chip below) that the visitor opts into.
+  const [sort, setSort] = useState('name');
   const [dir, setDir] = useState('asc');
-
-  useEffect(() => {
-    if (location && sort === 'name' && dir === 'asc') setSort('distance');
-  }, [location]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api.listRoasters()
@@ -77,6 +112,11 @@ export default function RoastersPage() {
     if (!roasters) return [];
     return Array.from(new Set(roasters.map((r) => r.country_code).filter(Boolean))).sort();
   }, [roasters]);
+
+  const totalShipping = useMemo(
+    () => (roasters ? roasters.filter((r) => r.has_shipping).length : 0),
+    [roasters]
+  );
 
   const rows = useMemo(() => {
     if (!roasters) return [];
@@ -139,12 +179,8 @@ export default function RoastersPage() {
     if (sort === field) setDir(dir === 'asc' ? 'desc' : 'asc');
     else { setSort(field); setDir('asc'); }
   }
-  const arrow = (f) => (sort === f ? (dir === 'asc' ? '↑' : '↓') : '↕');
   const hasFilters = search || region || country;
 
-  // Same field set as the desktop table headers, in display order. Drives the
-  // mobile "Sort by" control, since the sortable column headers are hidden in
-  // the mobile card layout below.
   const sortOptions = [
     ['name', 'Roaster name'],
     ...(location ? [['distance', 'Distance']] : []),
@@ -157,96 +193,131 @@ export default function RoastersPage() {
     ['free_shipping_over', 'Free over'],
   ];
 
+  const selectClass = 'px-3 py-2.5 min-h-[44px] rounded-lg text-sm bg-surface border border-border text-fg focus:outline-none focus:border-accent';
+
   if (error) {
     return (
-      <div className="p-10 text-center text-red-700 dark:text-red-400">
-        <h3 className="font-bold mb-2">We couldn't load the roasters</h3>
+      <div className="p-10 text-center text-danger">
+        <h3 className="font-bold mb-2 text-fg">We couldn't load the roasters</h3>
         <p className="text-sm text-fg-muted">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover transition-colors"
+          className="mt-4 px-4 py-2.5 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           Try again
         </button>
       </div>
     );
   }
-  if (!roasters) {
-    return (
-      <div className="m-3 sm:m-5" role="status" aria-label="Loading roasters">
-        <div className="bg-surface rounded-xl shadow border border-border overflow-hidden">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0">
-              <Skeleton className="w-6 h-6" rounded="rounded-sm" />
-              <Skeleton className="h-4 flex-1 max-w-[12rem]" />
-              <Skeleton className="h-4 w-16 ml-auto" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
-      <h1 className="sr-only">Coffee roasters — Canadian specialty</h1>
+      <h1 className="sr-only">Canadian specialty-coffee roasters</h1>
       <p className="sr-only" aria-live="polite" role="status">{rows.length} {rows.length === 1 ? 'roaster' : 'roasters'} match your search</p>
-      <div className="p-4 sm:p-5 bg-surface-muted border-b border-border flex flex-wrap gap-3 sm:gap-4 items-center">
-        <div className="flex-1 min-w-[12rem] basis-full sm:basis-auto">
+
+      {/* Search hero — the list's primary entry point (search is the CTA). */}
+      <section className="px-4 sm:px-6 pt-5 pb-4 sm:pt-7 sm:pb-5 border-b border-border">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Find a Canadian roaster</h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          {roasters ? `${totalShipping} roasters` : 'Loading…'} · live beans, prices &amp; shipping
+        </p>
+
+        <div className="mt-3.5 relative">
+          <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setFilter('q', e.target.value)}
             aria-label="Search roasters by name, city, or region"
-            placeholder="Search roasters, cities, regions…"
-            className="w-full p-3 border-2 border-border rounded-lg text-base bg-surface text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent"
+            placeholder="Search roasters, cities, beans…"
+            className="w-full pl-11 pr-10 py-3 min-h-[48px] rounded-xl text-base bg-surface-muted border border-border text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent focus:bg-surface transition-colors"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setFilter('q', '')}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 inline-flex items-center justify-center rounded-full text-fg-muted hover:text-fg hover:bg-border transition-colors"
+            >
+              <Icon name="x" size={16} />
+            </button>
+          )}
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* Geolocation as a suggestion, not an auto-sort: one tap orders by
+              distance; tap again (or pick a sort) to return to alphabetical. */}
+          {location && (
+            <button
+              type="button"
+              onClick={() => {
+                if (sort === 'distance') { setSort('name'); setDir('asc'); }
+                else { setSort('distance'); setDir('asc'); }
+              }}
+              aria-pressed={sort === 'distance'}
+              className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors ${
+                sort === 'distance'
+                  ? 'bg-accent-soft text-accent'
+                  : 'bg-surface-muted text-fg-muted hover:text-fg hover:bg-border'
+              }`}
+            >
+              <Icon name="pin" size={15} />
+              {sort === 'distance' ? 'Nearest first' : 'Sort by distance'}
+            </button>
+          )}
           {allCountries.length > 1 && (
-            <select value={country} onChange={(e) => setFilter('country', e.target.value)}
-                    className="px-3 py-3 sm:py-2.5 border-2 border-border rounded-lg text-sm bg-surface text-fg focus:outline-none focus:border-accent">
+            <select value={country} onChange={(e) => setFilter('country', e.target.value)} aria-label="Filter by country" className={selectClass}>
               <option value="">All countries</option>
               {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
             </select>
           )}
           {allRegions.length > 0 && (
-            <select value={region} onChange={(e) => setFilter('region', e.target.value)}
-                    className="px-3 py-3 sm:py-2.5 border-2 border-border rounded-lg text-sm bg-surface text-fg focus:outline-none focus:border-accent">
-              <option value="">All states/provinces</option>
+            <select value={region} onChange={(e) => setFilter('region', e.target.value)} aria-label="Filter by province" className={selectClass}>
+              <option value="">All provinces</option>
               {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           )}
-          <label className="flex items-center gap-2 text-sm text-fg-muted cursor-pointer select-none py-2 sm:py-0">
+          <label className="inline-flex items-center gap-2 text-sm text-fg-muted cursor-pointer select-none min-h-[44px] px-1">
             <input
               type="checkbox"
               checked={showOutOfStock}
               onChange={(e) => setShowOutOfStock(e.target.checked)}
-              className="accent-amber-700 dark:accent-amber-500 w-4 h-4"
+              className="w-4 h-4"
+              style={{ accentColor: 'var(--color-accent)' }}
             />
-            Include sold out & discontinued
+            Include sold out
           </label>
           {hasFilters && (
             <button
               onClick={clearAll}
-              className="px-5 py-3 sm:py-2.5 bg-surface-muted hover:bg-border-strong text-fg-muted hover:text-fg border border-border rounded-lg text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] text-fg-muted hover:text-fg bg-surface-muted hover:bg-border rounded-lg text-sm font-medium transition-colors"
             >
-              Clear
+              <Icon name="x" size={15} /> Clear
             </button>
           )}
         </div>
-      </div>
+      </section>
 
-      <div className="m-3 sm:m-5">
-        {rows.length === 0 ? (
-          <div className="text-center py-16 px-5 text-fg-muted">
-            <h3 className="mb-2 text-fg text-xl font-semibold">No roasters found</h3>
-            <p>Try adjusting your search or filters.</p>
-          </div>
-        ) : (
-          <>
-          {/* Mobile (<md): "Sort by" control + stacked cards. The desktop
-              table's sortable headers are hidden here, so this drives sort. */}
+      {!roasters ? (
+        <div className="px-3 sm:px-5 py-4 space-y-3" role="status" aria-label="Loading roasters">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 bg-surface rounded-2xl border border-border p-4">
+              <Skeleton className="w-10 h-10" rounded="rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 max-w-[10rem]" />
+                <Skeleton className="h-3 max-w-[6rem]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="text-center py-16 px-5 text-fg-muted">
+          <h3 className="mb-2 text-fg text-xl font-semibold">No roasters found</h3>
+          <p>Try adjusting your search or filters.</p>
+        </div>
+      ) : (
+        <div className="px-3 sm:px-5 py-4">
+          {/* Mobile (<md): "Sort by" control + stacked cards. */}
           <div className="md:hidden">
             <div className="flex items-center gap-2 mb-3">
               <label htmlFor="roaster-sort" className="text-sm text-fg-muted flex-shrink-0">Sort by</label>
@@ -254,7 +325,7 @@ export default function RoastersPage() {
                 id="roaster-sort"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="flex-1 min-w-0 px-3 py-2.5 min-h-[44px] border-2 border-border rounded-lg text-sm bg-surface text-fg focus:outline-none focus:border-accent"
+                className="flex-1 min-w-0 px-3 py-2.5 min-h-[44px] rounded-lg text-sm bg-surface border border-border text-fg focus:outline-none focus:border-accent"
               >
                 {sortOptions.map(([field, label]) => <option key={field} value={field}>{label}</option>)}
               </select>
@@ -262,129 +333,105 @@ export default function RoastersPage() {
                 type="button"
                 onClick={() => setDir(dir === 'asc' ? 'desc' : 'asc')}
                 aria-label={`Sort ${dir === 'asc' ? 'ascending' : 'descending'}; tap to reverse`}
-                className="px-3 py-2.5 min-h-[44px] min-w-[44px] border-2 border-border rounded-lg text-base bg-surface text-fg hover:bg-surface-muted transition-colors inline-flex items-center justify-center flex-shrink-0"
+                className="w-11 h-11 border border-border rounded-lg bg-surface text-fg-muted hover:text-fg hover:bg-surface-muted transition-colors inline-flex items-center justify-center flex-shrink-0"
               >
-                <span aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span>
+                <Icon name={dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={18} />
               </button>
             </div>
             <ul className="space-y-3">
               {rows.map((r) => {
-                const range = r._range;
-                const minClass = range.min == null ? 'text-fg-subtle'
-                  : range.min < 6.5 ? 'text-green-600 dark:text-green-400'
-                  : range.min < 7.5 ? 'text-yellow-600 dark:text-yellow-400'
-                  : 'text-red-600 dark:text-red-400';
                 const beanCount = showOutOfStock ? (r.coffees_count ?? r.coffees.length) : r._inStockCount;
                 const cityRegion = [r.city, r.region].filter(Boolean).join(', ');
+                const ship = shipLabel(r);
                 return (
                   <li key={r.id}>
                     <Link
                       to={`/beans?roaster=${r.slug}`}
-                      className="block bg-surface rounded-xl shadow border border-border p-4 hover:bg-surface-muted transition-colors"
+                      className="block bg-surface rounded-2xl border border-border p-4 hover:border-border-strong active:bg-surface-muted transition-colors"
                     >
-                      <div className="flex items-start gap-2.5">
-                        {r.favicon_url && (
-                          <img
-                            src={r.favicon_url}
-                            alt=""
-                            loading="lazy"
-                            className="w-8 h-8 rounded-sm flex-shrink-0 object-contain bg-surface-muted border border-border"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        )}
+                      <div className="flex items-center gap-3">
+                        <RoasterAvatar roaster={r} />
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-fg truncate">{r.name}</div>
+                          <div className="font-semibold text-fg truncate">{r.name}</div>
                           {r.is_online_only ? (
                             <Badge tone="info" className="mt-0.5">Online only</Badge>
                           ) : (
-                            <div className="text-sm text-fg-muted truncate">{cityRegion || '—'}</div>
+                            <div className="flex items-center gap-1 text-sm text-fg-muted truncate">
+                              <Icon name="pin" size={13} className="flex-shrink-0 text-fg-subtle" />
+                              <span className="truncate">{cityRegion || '—'}</span>
+                            </div>
                           )}
                         </div>
-                        {location && (
-                          <span className="text-xs text-fg-muted whitespace-nowrap flex-shrink-0 mt-0.5">
-                            {r._distanceKm != null ? formatKm(r._distanceKm) : '—'}
+                        {location && r._distanceKm != null && (
+                          <span className="text-xs font-medium text-fg-muted bg-surface-muted px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0">
+                            {formatKm(r._distanceKm)}
                           </span>
                         )}
                       </div>
-                      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <div>
-                          <dt className="text-xs text-fg-subtle">Beans</dt>
-                          <dd className="text-fg font-medium">{beanCount} {beanCount === 1 ? 'bean' : 'beans'}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-fg-subtle">¢/g range</dt>
-                          <dd className={`font-bold ${minClass}`}>
-                            {range.min != null
-                              ? (range.min === range.max ? `${range.min.toFixed(1)}¢` : `${range.min.toFixed(1)}–${range.max.toFixed(1)}¢`)
-                              : '—'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-fg-subtle">Shipping</dt>
-                          <dd className="text-fg">{r.shipping_cost != null ? `$${Number(r.shipping_cost).toFixed(2)}` : '—'}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-fg-subtle">Free over</dt>
-                          <dd className="text-fg">{r.free_shipping_over != null ? `$${Number(r.free_shipping_over).toFixed(2)}` : '—'}</dd>
-                        </div>
-                      </dl>
+                      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2 text-sm">
+                        <span className="inline-flex items-center gap-1.5 text-fg-muted min-w-0">
+                          <Icon name="coffee" size={15} className="flex-shrink-0 text-fg-subtle" />
+                          <span className="truncate">{beanCount} {beanCount === 1 ? 'bean' : 'beans'}</span>
+                        </span>
+                        <span className={`font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>{priceLabel(r._range)}</span>
+                        {ship && (
+                          <span className="inline-flex items-center gap-1.5 text-fg-muted whitespace-nowrap">
+                            <Icon name="truck" size={15} className="flex-shrink-0 text-fg-subtle" />
+                            {ship}
+                          </span>
+                        )}
+                      </div>
                     </Link>
                   </li>
                 );
               })}
             </ul>
           </div>
-          {/* Desktop (md:+): full sortable table. */}
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full bg-surface rounded-xl overflow-hidden shadow border-collapse">
-            <thead>
-              <tr>
-                {[
-                  ['name', 'Roaster'],
-                  ...(location ? [['distance', 'Distance']] : []),
-                  ...(allCountries.length > 1 ? [['country', 'Country']] : []),
-                  ['region', 'State / Province'],
-                  ['city', 'City'],
-                  ['coffees', 'Bean selection'],
-                  ['cpg_range', '¢/g range'],
-                  ['shipping_cost', 'Shipping'],
-                  ['free_shipping_over', 'Free over'],
-                ].map(([field, label]) => (
-                  <th
-                    key={field}
-                    onClick={() => toggleSort(field)}
-                    className="bg-accent hover:bg-accent-hover text-accent-fg px-4 py-4 text-left font-semibold cursor-pointer select-none transition-colors"
-                  >
-                    {label} <span className="ml-1 text-xs">{arrow(field)}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const range = r._range;
-                const minClass = range.min == null ? 'text-fg-subtle'
-                  : range.min < 6.5 ? 'text-green-600 dark:text-green-400'
-                  : range.min < 7.5 ? 'text-yellow-600 dark:text-yellow-400'
-                  : 'text-red-600 dark:text-red-400';
-                return (
+
+          {/* Desktop (md:+): editorial sortable table. */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-border">
+            <table className="w-full bg-surface border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  {[
+                    ['name', 'Roaster'],
+                    ...(location ? [['distance', 'Distance']] : []),
+                    ...(allCountries.length > 1 ? [['country', 'Country']] : []),
+                    ['region', 'Province'],
+                    ['city', 'City'],
+                    ['coffees', 'Beans'],
+                    ['cpg_range', '¢/g range'],
+                    ['shipping_cost', 'Shipping'],
+                    ['free_shipping_over', 'Free over'],
+                  ].map(([field, label]) => {
+                    const active = sort === field;
+                    return (
+                      <th
+                        key={field}
+                        onClick={() => toggleSort(field)}
+                        aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        className={`bg-surface-muted px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors hover:text-fg ${active ? 'text-accent' : 'text-fg-muted'}`}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {active && <Icon name={dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={13} />}
+                        </span>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
                   <tr key={r.id}
                       onClick={() => navigate(`/beans?roaster=${r.slug}`)}
-                      className="hover:bg-surface-muted border-b border-border cursor-pointer transition-colors">
+                      className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        {r.favicon_url && (
-                          <img
-                            src={r.favicon_url}
-                            alt=""
-                            loading="lazy"
-                            className="w-6 h-6 rounded-sm flex-shrink-0 object-contain bg-surface-muted border border-border"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        )}
+                        <RoasterAvatar roaster={r} />
                         <Link to={`/beans?roaster=${r.slug}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="font-bold text-fg hover:underline">
+                              className="font-semibold text-fg hover:text-accent hover:underline">
                           {r.name}
                         </Link>
                       </div>
@@ -403,35 +450,27 @@ export default function RoastersPage() {
                         ? <Badge tone="info">Online only</Badge>
                         : (r.city || <span className="text-fg-subtle">—</span>)}
                     </td>
-                    <td className="px-4 py-3 text-fg">
-                      {showOutOfStock ? (
-                        <>{r.coffees_count ?? r.coffees.length} {(r.coffees_count ?? r.coffees.length) === 1 ? 'bean' : 'beans'}</>
-                      ) : (
-                        <>{r._inStockCount} {r._inStockCount === 1 ? 'bean' : 'beans'}</>
-                      )}
+                    <td className="px-4 py-3 text-fg whitespace-nowrap">
+                      {showOutOfStock
+                        ? `${r.coffees_count ?? r.coffees.length} ${(r.coffees_count ?? r.coffees.length) === 1 ? 'bean' : 'beans'}`
+                        : `${r._inStockCount} ${r._inStockCount === 1 ? 'bean' : 'beans'}`}
                     </td>
-                    <td className={`px-4 py-3 font-bold ${minClass} whitespace-nowrap`}>
-                      {range.min != null
-                        ? (range.min === range.max
-                            ? `${range.min.toFixed(1)}¢`
-                            : `${range.min.toFixed(1)}–${range.max.toFixed(1)}¢`)
-                        : <span className="text-fg-subtle">—</span>}
+                    <td className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
+                      {priceLabel(r._range)}
                     </td>
-                    <td className="px-4 py-3 text-fg">
-                      {r.shipping_cost != null ? `$${Number(r.shipping_cost).toFixed(2)}` : <span className="text-fg-subtle">—</span>}
+                    <td className="px-4 py-3 text-fg whitespace-nowrap">
+                      {r.shipping_cost != null ? (Number(r.shipping_cost) === 0 ? 'Free' : `$${Number(r.shipping_cost).toFixed(2)}`) : <span className="text-fg-subtle">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-fg">
+                    <td className="px-4 py-3 text-fg whitespace-nowrap">
                       {r.free_shipping_over != null ? `$${Number(r.free_shipping_over).toFixed(2)}` : <span className="text-fg-subtle">—</span>}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
           </div>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }
