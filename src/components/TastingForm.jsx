@@ -12,14 +12,20 @@ const inputCls =
   'w-full px-3 py-2 border border-border rounded-lg text-sm bg-surface text-fg ' +
   'placeholder:text-fg-subtle focus:outline-none focus:border-accent';
 
-export default function TastingForm({ coffee, onSaved, onCancel }) {
+export default function TastingForm({ coffee, tasting, onSaved, onCancel }) {
   const { token } = useAuth();
-  const [rating, setRating] = useState(0); // STAR units (0–5, step 0.5); 0 = no rating
-  const [notes, setNotes] = useState('');
-  const [brewMethod, setBrewMethod] = useState('');
-  const [customBrew, setCustomBrew] = useState('');
-  const [tastedOn, setTastedOn] = useState(() => new Date().toISOString().slice(0, 10));
-  const [isPublic, setIsPublic] = useState(true);
+  const isEdit = !!tasting;
+  // Editing: split the stored brew_method back into the dropdown vs. the custom
+  // free-text field — a value outside the preset list becomes "Other…" + custom.
+  const initialBrew = tasting?.brew_method ?? '';
+  const initialKnown = initialBrew !== '' && BREW_METHODS.includes(initialBrew);
+
+  const [rating, setRating] = useState(tasting?.rating ? tasting.rating / 2 : 0); // STAR units (0–5); 0 = no rating
+  const [notes, setNotes] = useState(tasting?.notes ?? '');
+  const [brewMethod, setBrewMethod] = useState(initialBrew ? (initialKnown ? initialBrew : 'other') : '');
+  const [customBrew, setCustomBrew] = useState(initialBrew && !initialKnown ? initialBrew : '');
+  const [tastedOn, setTastedOn] = useState(() => tasting?.tasted_on ?? new Date().toISOString().slice(0, 10));
+  const [isPublic, setIsPublic] = useState(tasting ? !!tasting.is_public : true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,17 +37,17 @@ export default function TastingForm({ coffee, onSaved, onCancel }) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    authFetch(token, '/tastings', {
-      method: 'POST',
-      body: JSON.stringify({
-        coffee_id: coffee.id,
-        rating: rating > 0 ? Math.round(rating * 2) : null, // stars → 1–10 half-star scale
-        notes: notes.trim() || null,
-        brew_method: resolvedBrew,
-        tasted_on: tastedOn,
-        is_public: isPublic,
-      }),
-    })
+    const body = {
+      rating: rating > 0 ? Math.round(rating * 2) : null, // stars → 1–10 half-star scale
+      notes: notes.trim() || null,
+      brew_method: resolvedBrew,
+      tasted_on: tastedOn,
+      is_public: isPublic,
+    };
+    const req = isEdit
+      ? authFetch(token, `/tastings/${tasting.id}`, { method: 'PUT', body: JSON.stringify(body) })
+      : authFetch(token, '/tastings', { method: 'POST', body: JSON.stringify({ coffee_id: coffee.id, ...body }) });
+    req
       .then((d) => onSaved?.(d.tasting))
       .catch((err) => setError(err.body?.message || err.message))
       .finally(() => setSubmitting(false));
@@ -139,7 +145,7 @@ export default function TastingForm({ coffee, onSaved, onCancel }) {
           </Button>
         )}
         <Button type="submit" size="sm" loading={submitting}>
-          {submitting ? 'Saving…' : 'Save tasting'}
+          {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Save tasting'}
         </Button>
       </div>
     </form>
