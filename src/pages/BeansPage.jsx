@@ -11,7 +11,7 @@ import BeanGrid from '../components/BeanGrid.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import Icon from '../components/Icon.jsx';
 import { SkeletonBeanCard } from '../ui/Skeleton.jsx';
-import Toast from '../ui/Toast.jsx';
+import Snackbar from '../ui/Snackbar.jsx';
 import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList } from '../utils/beanFilters.js';
 import {
   filterAndSortBeans,
@@ -64,11 +64,11 @@ export default function BeansPage() {
   // Mobile-only: a floating "Filters" button that fades in once the inline
   // filter bar has scrolled away (mobile#4).
   const [showFilterFab, setShowFilterFab] = useState(false);
-  // Transient confirmation toast shown when a filter is added/removed, so the
-  // effect of picking a dropdown option is obvious (the active-filter chips
-  // can be below the fold / behind an open dropdown). See <Toast>.
-  const [toast, setToast] = useState(null);
-  const toastSeq = useRef(0);
+  // Transient action bar shown when a filter is added/removed: it confirms the
+  // change (the active-filter chips can be below the fold / behind an open
+  // dropdown) AND offers an Undo. See <Snackbar>.
+  const [snackbar, setSnackbar] = useState(null);
+  const snackbarSeq = useRef(0);
 
   const { filters, setFilter, clearFilter, clearAll, activeFilterChips, params, setParams } =
     useDirectoryFilters({
@@ -179,22 +179,27 @@ export default function BeansPage() {
     [beans, filters, showHistorical]
   );
 
-  // Surface a small confirmation toast for a filter add/remove. A fresh
-  // sequence id per call re-keys <Toast> so a repeat action replays the pop
-  // instead of resetting the live one's timer.
-  const showToast = useCallback((kind, message) => {
-    toastSeq.current += 1;
-    setToast({ id: toastSeq.current, kind, message });
+  // Show the filter action bar (a Snackbar with an Undo). A fresh sequence id
+  // per call re-keys <Snackbar> so a repeat action replays the slide-in and
+  // restarts its timer instead of reusing the live one.
+  const showSnackbar = useCallback((kind, message, key, before) => {
+    snackbarSeq.current += 1;
+    setSnackbar({ id: snackbarSeq.current, kind, message, key, before });
   }, []);
 
-  // Apply a filter change AND confirm it with a toast. Shared by the filter
-  // dropdowns and the in-card chip toggles so every filter action gives the
-  // same visible feedback. Sort and the free-text search box deliberately
+  // Apply a filter change immediately, then surface a Snackbar that confirms it
+  // and offers an Undo (revert this one key to its previous value). Shared by
+  // the filter dropdowns and the in-card chip toggles so every filter action
+  // gets the same feedback. Sort and the free-text search box deliberately
   // bypass this and call setFilter directly — neither shows as a filter chip,
-  // and a toast on every search keystroke would be noise.
+  // and an Undo bar on every search keystroke would be noise.
   function applyFilter(key, value) {
     const before = filters[key];
     setFilter(key, value);
+    // Undo reverts THIS key to `before`. We stash (key, before) and run the
+    // actual setFilter at render time against the LIVE params (see <Snackbar>
+    // below) — so Undo can't go stale and only touches this one key, keeping
+    // any filters the user added after this action.
 
     const label = LABELS[key] || key;
     if (MULTI_KEYS.has(key)) {
@@ -202,19 +207,19 @@ export default function BeansPage() {
       const afterArr = Array.isArray(value) ? value : [];
       if (afterArr.length > beforeArr.length) {
         const added = afterArr.find((v) => !beforeArr.includes(v));
-        showToast('added', `Added ${label}: ${labelForValue(key, added, roasters)}`);
+        showSnackbar('added', `Added ${label}: ${labelForValue(key, added, roasters)}`, key, before);
       } else if (afterArr.length < beforeArr.length) {
         if (beforeArr.length - afterArr.length === 1) {
           const removed = beforeArr.find((v) => !afterArr.includes(v));
-          showToast('removed', `Removed ${label}: ${labelForValue(key, removed, roasters)}`);
+          showSnackbar('removed', `Removed ${label}: ${labelForValue(key, removed, roasters)}`, key, before);
         } else {
-          showToast('removed', `Cleared ${label} filter`);
+          showSnackbar('removed', `Cleared ${label} filter`, key, before);
         }
       }
     } else if (value) {
-      showToast('added', `Added ${label}: ${labelForValue(key, value, roasters)}`);
+      showSnackbar('added', `Added ${label}: ${labelForValue(key, value, roasters)}`, key, before);
     } else {
-      showToast('removed', `Removed ${label} filter`);
+      showSnackbar('removed', `Removed ${label} filter`, key, before);
     }
   }
 
@@ -536,13 +541,15 @@ export default function BeansPage() {
         </button>
       )}
 
-      {/* ---------- Filter add/remove confirmation toast ---------- */}
-      {toast && (
-        <Toast
-          key={toast.id}
-          kind={toast.kind}
-          message={toast.message}
-          onDismiss={() => setToast(null)}
+      {/* ---------- Filter add/remove action bar (confirm + Undo) ---------- */}
+      {snackbar && (
+        <Snackbar
+          key={snackbar.id}
+          kind={snackbar.kind}
+          message={snackbar.message}
+          actionLabel="Undo"
+          onAction={() => setFilter(snackbar.key, snackbar.before)}
+          onDismiss={() => setSnackbar(null)}
         />
       )}
     </div>
