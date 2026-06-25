@@ -10,6 +10,11 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Transient signal from the most recent /auth/register: did the initial
+  // verification email actually go out? null = unknown (after a reload, or for
+  // sign-in/OAuth). Lets the verify banner be honest instead of always
+  // claiming "we sent a link".
+  const [verificationEmailSent, setVerificationEmailSent] = useState(null);
 
   useEffect(() => {
     if (!token) { setUser(null); return; }
@@ -32,7 +37,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, setAuthToken, logout }}>
+    <AuthContext.Provider value={{ token, user, loading, setAuthToken, logout, verificationEmailSent, setVerificationEmailSent }}>
       {children}
     </AuthContext.Provider>
   );
