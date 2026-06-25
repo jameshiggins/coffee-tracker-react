@@ -7,10 +7,15 @@ import { authFetch, useAuth } from '../auth.jsx';
  * Hidden once verification completes (via /me re-fetch on next page load).
  */
 export default function EmailVerificationBanner() {
-  const { token, user } = useAuth();
+  const { token, user, verificationEmailSent } = useAuth();
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
 
   if (!user || user.email_verified) return null;
+
+  // If the initial send is known to have failed (and the user hasn't
+  // successfully resent yet), be honest rather than claiming we sent a link
+  // they'll never receive.
+  const sendFailed = verificationEmailSent === false && status !== 'sent';
 
   function resend() {
     setStatus('sending');
@@ -22,9 +27,19 @@ export default function EmailVerificationBanner() {
   return (
     <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-900 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap dark:bg-yellow-500/10 dark:text-yellow-300 dark:border-yellow-500/30">
       <span>
-        ⚠️ <strong>Verify your email</strong> — we sent a link to{' '}
-        <code className="bg-yellow-100 px-1 rounded dark:bg-yellow-500/20">{user.email}</code>.
-        Restock alerts won't fire until you verify.
+        {sendFailed ? (
+          <>
+            ⚠️ <strong>We couldn't send your verification email</strong> to{' '}
+            <code className="bg-yellow-100 px-1 rounded dark:bg-yellow-500/20">{user.email}</code>.
+            Please click resend to try again.
+          </>
+        ) : (
+          <>
+            ⚠️ <strong>Verify your email</strong> — we sent a link to{' '}
+            <code className="bg-yellow-100 px-1 rounded dark:bg-yellow-500/20">{user.email}</code>.
+            Restock alerts won't fire until you verify.
+          </>
+        )}
       </span>
       <button
         onClick={resend}

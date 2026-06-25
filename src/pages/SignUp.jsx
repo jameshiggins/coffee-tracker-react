@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { authFetch, GOOGLE_REDIRECT_URL, useAuth } from '../auth.jsx';
 
 export default function SignUp() {
-  const { user, setAuthToken } = useAuth();
+  const { user, setAuthToken, setVerificationEmailSent } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -30,6 +30,9 @@ export default function SignUp() {
       }),
     })
       .then((d) => {
+        // Surfaced by EmailVerificationBanner: if the first send failed, tell
+        // the user to resend instead of claiming a link is on its way.
+        setVerificationEmailSent(d.verification_email_sent ?? true);
         setAuthToken(d.token);
         navigate('/me', { replace: true });
       })
