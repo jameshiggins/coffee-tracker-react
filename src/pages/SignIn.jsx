@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { authFetch, GOOGLE_REDIRECT_URL, useAuth } from '../auth.jsx';
+import Field from '../ui/Field.jsx';
+
+// Match the page's original label treatment (Field's default is text-sm).
+const LABEL_CLASS = 'text-xs font-normal uppercase tracking-wide text-fg-muted';
+const INPUT_CLASS =
+  'w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle';
 
 export default function SignIn() {
   const { user, setAuthToken } = useAuth();
@@ -9,6 +15,8 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
 
   if (user) return <Navigate to="/me" replace />;
 
@@ -24,7 +32,16 @@ export default function SignIn() {
         setAuthToken(d.token);
         navigate('/me', { replace: true });
       })
-      .catch((e) => setError(e.body?.errors?.email?.[0] || e.body?.message || e.message))
+      .catch((e) => {
+        setError(e.body?.errors?.email?.[0] || e.body?.message || e.message);
+        // Put the user back on the first field the server complained about.
+        const errs = e.body?.errors || {};
+        const first = [
+          ['email', emailRef],
+          ['password', passwordRef],
+        ].find(([key]) => errs[key]);
+        (first ? first[1] : emailRef).current?.focus();
+      })
       .finally(() => setSubmitting(false));
   }
 
@@ -32,19 +49,19 @@ export default function SignIn() {
     <div className="p-6 max-w-md mx-auto">
       <h1 className="text-2xl font-bold text-fg mb-4">Sign in</h1>
       <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
-        <div>
-          <label className="text-xs uppercase tracking-wide text-fg-muted">Email</label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                 autoComplete="email"
-                 className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
-        </div>
-        <div>
-          <label className="text-xs uppercase tracking-wide text-fg-muted">Password</label>
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+        <Field label="Email" labelClassName={LABEL_CLASS}>
+          <input ref={emailRef} type="email" name="email" required value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 autoComplete="email" spellCheck={false}
+                 className={INPUT_CLASS} />
+        </Field>
+        <Field label="Password" labelClassName={LABEL_CLASS}>
+          <input ref={passwordRef} type="password" name="password" required value={password}
+                 onChange={(e) => setPassword(e.target.value)}
                  autoComplete="current-password"
-                 className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
-        </div>
-        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{error}</div>}
+                 className={INPUT_CLASS} />
+        </Field>
+        {error && <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{error}</div>}
         <button type="submit" disabled={submitting}
                 className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
           {submitting ? 'Signing in…' : 'Sign in'}

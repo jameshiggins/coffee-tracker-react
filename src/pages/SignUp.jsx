@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { authFetch, GOOGLE_REDIRECT_URL, useAuth } from '../auth.jsx';
+import Field from '../ui/Field.jsx';
+
+// Match the page's original label treatment (Field's default is text-sm).
+const LABEL_CLASS = 'text-xs font-normal uppercase tracking-wide text-fg-muted';
+const inputClass = (invalid) =>
+  `w-full p-2 border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle ${
+    invalid ? 'border-red-300 dark:border-red-500/30' : 'border-border'
+  }`;
 
 export default function SignUp() {
   const { user, setAuthToken, setVerificationEmailSent } = useAuth();
@@ -12,6 +20,11 @@ export default function SignUp() {
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const nameRef = useRef(null);
+  const displayNameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmRef = useRef(null);
 
   if (user) return <Navigate to="/me" replace />;
 
@@ -36,7 +49,20 @@ export default function SignUp() {
         setAuthToken(d.token);
         navigate('/me', { replace: true });
       })
-      .catch((e) => setErrors(e.body?.errors || { _: [e.body?.message || e.message] }))
+      .catch((e) => {
+        const errs = e.body?.errors || { _: [e.body?.message || e.message] };
+        setErrors(errs);
+        // Put the user back on the first field the server complained about,
+        // in form order.
+        const first = [
+          ['name', nameRef],
+          ['display_name', displayNameRef],
+          ['email', emailRef],
+          ['password', passwordRef],
+          ['password_confirmation', confirmRef],
+        ].find(([key]) => errs[key]);
+        first?.[1].current?.focus();
+      })
       .finally(() => setSubmitting(false));
   }
 
@@ -46,16 +72,39 @@ export default function SignUp() {
     <div className="p-6 max-w-md mx-auto">
       <h1 className="text-2xl font-bold text-fg mb-4">Create an account</h1>
       <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
-        <Field label="Name" value={name} setter={setName} required autoComplete="name" error={errMsg('name')} />
-        <Field label="Display name (optional)" value={displayName} setter={setDisplayName}
-               placeholder="how others see you in shared tastings" />
-        <Field label="Email" type="email" value={email} setter={setEmail} required autoComplete="email" error={errMsg('email')} />
-        <Field label="Password" type="password" value={password} setter={setPassword} required
-               autoComplete="new-password" error={errMsg('password')} hint="At least 8 characters." />
-        <Field label="Confirm password" type="password" value={confirm} setter={setConfirm} required
-               autoComplete="new-password" />
+        <Field label="Name" labelClassName={LABEL_CLASS} error={errMsg('name')}>
+          <input ref={nameRef} type="text" name="name" required value={name}
+                 onChange={(e) => setName(e.target.value)}
+                 autoComplete="name"
+                 className={inputClass(errMsg('name'))} />
+        </Field>
+        <Field label="Display name (optional)" labelClassName={LABEL_CLASS} error={errMsg('display_name')}>
+          <input ref={displayNameRef} type="text" name="display_name" value={displayName}
+                 onChange={(e) => setDisplayName(e.target.value)}
+                 autoComplete="nickname" spellCheck={false}
+                 placeholder="how others see you in shared tastings"
+                 className={inputClass(errMsg('display_name'))} />
+        </Field>
+        <Field label="Email" labelClassName={LABEL_CLASS} error={errMsg('email')}>
+          <input ref={emailRef} type="email" name="email" required value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 autoComplete="email" spellCheck={false}
+                 className={inputClass(errMsg('email'))} />
+        </Field>
+        <Field label="Password" labelClassName={LABEL_CLASS} hint="At least 8 characters." error={errMsg('password')}>
+          <input ref={passwordRef} type="password" name="password" required value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 autoComplete="new-password"
+                 className={inputClass(errMsg('password'))} />
+        </Field>
+        <Field label="Confirm password" labelClassName={LABEL_CLASS} error={errMsg('password_confirmation')}>
+          <input ref={confirmRef} type="password" name="password_confirmation" required value={confirm}
+                 onChange={(e) => setConfirm(e.target.value)}
+                 autoComplete="new-password"
+                 className={inputClass(errMsg('password_confirmation'))} />
+        </Field>
 
-        {errors._ && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{errors._[0]}</div>}
+        {errors._ && <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">{errors._[0]}</div>}
 
         <button type="submit" disabled={submitting}
                 className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
@@ -73,27 +122,6 @@ export default function SignUp() {
       <p className="text-center text-sm text-fg-muted mt-6">
         Already have an account? <Link to="/sign-in" className="underline font-medium">Sign in</Link>
       </p>
-    </div>
-  );
-}
-
-function Field({ label, value, setter, type = 'text', required, autoComplete, placeholder, error, hint }) {
-  return (
-    <div>
-      <label className="text-xs uppercase tracking-wide text-fg-muted">{label}</label>
-      <input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => setter(e.target.value)}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        className={`w-full p-2 border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle ${
-          error ? 'border-red-300 dark:border-red-500/30' : 'border-border'
-        }`}
-      />
-      {hint && !error && <div className="text-xs text-fg-subtle mt-0.5">{hint}</div>}
-      {error && <div className="text-xs text-red-600 mt-0.5 dark:text-red-400">{error}</div>}
     </div>
   );
 }
