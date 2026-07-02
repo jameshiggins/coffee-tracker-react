@@ -568,18 +568,17 @@ function RoasterPanel({ roaster, onClear }) {
     <div className="bg-surface border border-border-strong rounded-xl p-5 mb-4 shadow-sm">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <nav aria-label="Breadcrumb" className="text-xs text-fg-muted mb-1">
-            <Link to="/roasters" className="hover:text-fg underline">Roasters</Link>
-            <span aria-hidden="true" className="mx-1.5">›</span>
-            <span className="text-fg-subtle">{roaster.name}</span>
-          </nav>
+          {/* No breadcrumb here: it'd be a one-level "Roasters › {name}" whose
+              second segment just repeats the <h2> below and whose first repeats
+              the nav tab + the back link beside the title. The title + a single
+              clear back-link carry the context without the redundancy. */}
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold text-fg">{roaster.name}</h2>
             <button
               onClick={onClear}
-              className="text-xs text-fg-muted hover:text-fg underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-muted px-2 py-1 rounded-md transition-colors"
             >
-              ← Show all roasters
+              <Icon name="arrowLeft" size={13} /> All beans
             </button>
           </div>
           {addressParts.length > 0 && (
