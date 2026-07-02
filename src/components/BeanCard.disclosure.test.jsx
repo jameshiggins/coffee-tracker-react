@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import BeanCard from './BeanCard.jsx';
 import { WishlistProvider } from '../hooks/useWishlist.jsx';
+import { api } from '../api.js';
 
 // Signed-out visitor; WishlistProvider consumes the same mocked module.
 vi.mock('../auth.jsx', () => ({
@@ -12,7 +13,8 @@ vi.mock('../auth.jsx', () => ({
   authFetch: vi.fn(() => Promise.resolve({ items: [] })),
 }));
 
-// BeanCard lazy-loads tastings on expand.
+// BeanCard lazy-loads tastings on expand. vi.mock is hoisted above the
+// imports, so the `api` import at the top receives this mock.
 vi.mock('../api.js', () => ({
   api: { getCoffeeTastings: vi.fn(() => Promise.resolve({ tastings: [] })) },
 }));
@@ -91,5 +93,35 @@ describe('BeanCard disclosure keyboard access', () => {
     expect(nameBtn).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText(/No tastings yet/)).not.toBeInTheDocument();
     expect(nameBtn).toHaveFocus();
+  });
+
+  it('opens the all-tastings dialog with real dialog semantics; Escape closes it, not the card', async () => {
+    const user = userEvent.setup();
+    const manyTastings = [1, 2, 3, 4].map((n) => ({
+      id: n,
+      rating: 8,
+      notes: `Note ${n}`,
+      tasted_on: `2026-06-0${n}`,
+      brew_method: null,
+      user: { id: n, display_name: `Taster ${n}`, avatar_url: null },
+    }));
+    api.getCoffeeTastings.mockResolvedValueOnce({ tastings: manyTastings });
+    render(<Harness />);
+
+    const nameBtn = screen.getByRole('button', { name: 'Disclosure Test Blend' });
+    nameBtn.focus();
+    await user.keyboard('{Enter}');
+
+    await user.click(await screen.findByRole('button', { name: /See all 4/ }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('All tastings (4)');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Escape inside the dialog must close ONLY the dialog — the card
+    // underneath stays expanded.
+    expect(nameBtn).toHaveAttribute('aria-expanded', 'true');
   });
 });

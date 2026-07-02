@@ -11,6 +11,7 @@ import WishlistHeart from './WishlistHeart.jsx';
 import Icon from './Icon.jsx';
 import TastingForm from './TastingForm.jsx';
 import ReportTastingButton from './ReportTastingButton.jsx';
+import Dialog from '../ui/Dialog.jsx';
 
 /**
  * Card for a single coffee bean. Two modes:
@@ -92,7 +93,7 @@ export default function BeanCard({
     headerBtnRef.current?.focus();
   }
 
-  return (
+  return (<>
     <div
       ref={cardRef}
       onClick={onCardClick}
@@ -414,25 +415,30 @@ export default function BeanCard({
         </div>
       )}
 
-      {/* See-all-tastings modal (t2) */}
-      {showAllTastingsModal && (
-        <AllTastingsModal
-          coffee={coffee}
-          tastings={tastings || []}
-          onClose={() => setShowAllTastingsModal(false)}
-        />
-      )}
-
-      {/* Image lightbox — bag labels often have text people want to read */}
-      {showImageModal && coffee.image_url && (
-        <ImageLightbox
-          src={coffee.image_url}
-          caption={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
-          onClose={() => setShowImageModal(false)}
-        />
-      )}
     </div>
-  );
+
+    {/* Both dialogs sit OUTSIDE the card div in the React tree so their
+        events (clicks, Escape) don't bubble into the card's own click /
+        keydown handlers; Radix portals them to <body> in the DOM. */}
+
+    {/* See-all-tastings modal (t2) */}
+    <AllTastingsModal
+      coffee={coffee}
+      tastings={tastings || []}
+      open={showAllTastingsModal}
+      onOpenChange={(o) => { if (!o) setShowAllTastingsModal(false); }}
+    />
+
+    {/* Image lightbox — bag labels often have text people want to read */}
+    {coffee.image_url && (
+      <ImageLightbox
+        src={coffee.image_url}
+        caption={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
+        open={showImageModal}
+        onOpenChange={(o) => { if (!o) setShowImageModal(false); }}
+      />
+    )}
+  </>);
 }
 
 /* ----------------- helpers ----------------- */
@@ -573,72 +579,78 @@ function TastingRow({ t }) {
   );
 }
 
-function AllTastingsModal({ coffee, tastings, onClose }) {
+/**
+ * See-all-tastings modal, on the shared Radix Dialog primitive — which buys
+ * role="dialog", aria-modal, focus trap, ESC-to-close, click-outside-to-
+ * close, scroll lock and focus return for free. `bare` + explicit classes
+ * reproduce the previous hand-rolled panel look.
+ */
+function AllTastingsModal({ coffee, tastings, open, onOpenChange }) {
   return (
-    <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-      data-no-expand
-    >
-      <div
-        className="bg-surface-elevated rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content
+        bare
+        aria-describedby={undefined}
+        className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-elevated rounded-xl shadow-2xl w-[92vw] max-w-2xl max-h-[80vh] flex flex-col"
       >
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <h3 className="font-bold text-fg min-w-0 truncate">
+          <Dialog.Title className="min-w-0 truncate">
             All tastings ({tastings.length}) · {coffee.name}
-          </h3>
-          <button
-            onClick={onClose}
+          </Dialog.Title>
+          <Dialog.Close
             aria-label="Close"
             className="text-fg-muted hover:text-fg text-xl leading-none flex-shrink-0 w-11 h-11 -mr-2 inline-flex items-center justify-center"
           >
             ✕
-          </button>
+          </Dialog.Close>
         </div>
         <div className="overflow-y-auto p-4 space-y-2 flex-1">
           {tastings.map((t) => <TastingRow key={t.id} t={t} />)}
         </div>
-      </div>
-    </div>
+      </Dialog.Content>
+    </Dialog>
   );
 }
 
-function ImageLightbox({ src, caption, onClose }) {
-  useEffect(() => {
-    function onEsc(e) { if (e.key === 'Escape') onClose(); }
-    document.addEventListener('keydown', onEsc);
-    return () => document.removeEventListener('keydown', onEsc);
-  }, [onClose]);
-
+/**
+ * Image lightbox, also on the Radix Dialog primitive (semantics, focus trap,
+ * ESC, scroll lock, focus return). The `bare` content spans the viewport and
+ * reproduces the old layout: darker backdrop, corner close button, centered
+ * image, caption below. Clicking anywhere except the image itself closes —
+ * same as the hand-rolled version's backdrop click.
+ */
+function ImageLightbox({ src, caption, open, onOpenChange }) {
   return (
-    <div
-      className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4"
-      onClick={onClose}
-      data-no-expand
-    >
-      <button
-        onClick={onClose}
-        className="absolute text-white/80 hover:text-white text-3xl leading-none w-11 h-11 inline-flex items-center justify-center"
-        style={{
-          top: 'calc(env(safe-area-inset-top) + 0.5rem)',
-          right: 'calc(env(safe-area-inset-right) + 0.75rem)',
-        }}
-        aria-label="Close image"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content
+        bare
+        aria-describedby={undefined}
+        overlayClassName="bg-black/80"
+        onClick={(e) => { if (e.target.tagName !== 'IMG') onOpenChange(false); }}
+        className="inset-0 flex flex-col items-center justify-center p-4"
       >
-        ✕
-      </button>
-      <img
-        src={src}
-        alt={caption}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg shadow-2xl bg-white"
-      />
-      {caption && (
-        <div className="mt-3 text-sm text-white/90 text-center max-w-[92vw] truncate">
-          {caption}
-        </div>
-      )}
-    </div>
+        <Dialog.Title className="sr-only">{caption || 'Product image'}</Dialog.Title>
+        <Dialog.Close
+          className="absolute text-white/80 hover:text-white text-3xl leading-none w-11 h-11 inline-flex items-center justify-center"
+          style={{
+            top: 'calc(env(safe-area-inset-top) + 0.5rem)',
+            right: 'calc(env(safe-area-inset-right) + 0.75rem)',
+          }}
+          aria-label="Close image"
+        >
+          ✕
+        </Dialog.Close>
+        <img
+          src={src}
+          alt={caption}
+          className="max-h-[85vh] max-w-[92vw] object-contain rounded-lg shadow-2xl bg-white"
+        />
+        {caption && (
+          <div className="mt-3 text-sm text-white/90 text-center max-w-[92vw] truncate">
+            {caption}
+          </div>
+        )}
+      </Dialog.Content>
+    </Dialog>
   );
 }
