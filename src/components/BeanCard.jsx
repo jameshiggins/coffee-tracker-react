@@ -44,6 +44,9 @@ export default function BeanCard({
   const [descExpanded, setDescExpanded] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const cardRef = useRef(null);
+  const headerBtnRef = useRef(null);
+  // Ties the name button (aria-controls) to the expanded body for AT users.
+  const detailsId = `bean-details-${coffee.id}`;
 
   // Lazy-load tastings only when card expands. Reload if the coffee changes.
   useEffect(() => {
@@ -71,18 +74,30 @@ export default function BeanCard({
   const cheapest = pickReferenceVariant(coffee.variants);
   const stars = ratingToStars(coffee.rating?.average);
 
-  // Click handler for the card body — expands on collapsed, collapses on expanded.
+  // Click handler for the card body — expands on collapsed, collapses on
+  // expanded. This is a pointer CONVENIENCE only; the accessible/keyboard
+  // path is the name button in the header (aria-expanded + aria-controls).
   function onCardClick(e) {
     // Don't toggle if user is trying to interact with controls inside the card.
     if (e.target.closest('[data-no-expand]')) return;
     onExpandToggle();
   }
 
+  // Escape collapses an expanded card and hands focus back to the name
+  // button — unless a modal is open (the modal owns Escape then).
+  function onCardKeyDown(e) {
+    if (e.key !== 'Escape' || !isExpanded) return;
+    if (showAllTastingsModal || showImageModal) return;
+    onExpandToggle();
+    headerBtnRef.current?.focus();
+  }
+
   return (
     <div
       ref={cardRef}
       onClick={onCardClick}
-      className={`bg-surface rounded-xl border shadow-sm transition-all cursor-pointer ${
+      onKeyDown={onCardKeyDown}
+      className={`bg-surface rounded-xl border shadow-sm transition-[border-color,box-shadow] cursor-pointer ${
         isExpanded
           ? 'border-accent/40 shadow-lg col-span-full ring-2 ring-accent/30'
           : 'border-border hover:border-border-strong hover:shadow-md'
@@ -92,18 +107,24 @@ export default function BeanCard({
       <div className="p-4">
         <div className="flex items-start gap-3">
           {coffee.image_url && (
-            <img
-              src={coffee.image_url}
-              alt={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
-              loading="lazy"
+            <button
+              type="button"
               data-no-expand
               onClick={(e) => { e.stopPropagation(); setShowImageModal(true); }}
+              aria-label="Enlarge image"
               title="Click to enlarge"
-              className={`flex-shrink-0 rounded-lg object-cover border border-border cursor-zoom-in hover:brightness-95 transition ${
-                isExpanded ? 'w-32 h-32' : 'w-20 h-20'
-              }`}
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+              className="flex-shrink-0 cursor-zoom-in"
+            >
+              <img
+                src={coffee.image_url}
+                alt={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
+                loading="lazy"
+                className={`rounded-lg object-cover border border-border hover:brightness-95 transition ${
+                  isExpanded ? 'w-32 h-32' : 'w-20 h-20'
+                }`}
+                onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+              />
+            </button>
           )}
           <div className="flex-1 min-w-0">
             {/* Roaster chip (above name on /beans, hidden on /beans?roaster=) */}
@@ -119,7 +140,20 @@ export default function BeanCard({
               </button>
             )}
             <h3 className="text-base font-semibold text-fg leading-tight mt-1">
-              {coffee.name}
+              {/* The keyboard path into the card: a real disclosure button.
+                  stopPropagation keeps the card-body click handler from
+                  firing a second (self-cancelling) toggle. */}
+              <button
+                ref={headerBtnRef}
+                type="button"
+                data-no-expand
+                aria-expanded={isExpanded}
+                aria-controls={detailsId}
+                onClick={(e) => { e.stopPropagation(); onExpandToggle(); }}
+                className="text-left hover:underline focus-visible:underline"
+              >
+                {coffee.name}
+              </button>
               {coffee.is_removed && (
                 <span className="ml-2 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 border-red-100 dark:bg-red-400/10 dark:text-red-300 dark:border-red-400/25 px-1.5 py-0.5 rounded border align-middle">
                   no longer sold
@@ -231,7 +265,7 @@ export default function BeanCard({
 
       {/* ---------- EXPANDED BODY ---------- */}
       {isExpanded && (
-        <div className="border-t border-border p-5" data-no-expand onClick={(e) => e.stopPropagation()}>
+        <div id={detailsId} className="border-t border-border p-5" data-no-expand onClick={(e) => e.stopPropagation()}>
           {/* Roaster blurb — collapsed teaser by default, "Read more" expands inline. */}
           {coffee.description && (
             <DescriptionBlock
@@ -416,7 +450,7 @@ function Chip({ value, onClick, tone = 'stone', label }) {
     <button
       data-no-expand
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-      className={`text-xs px-2 py-0.5 rounded-full border capitalize hover:brightness-95 transition-all ${cls}`}
+      className={`text-xs px-2 py-0.5 rounded-full border capitalize hover:brightness-95 transition-colors ${cls}`}
       title={accessibleName}
       aria-label={accessibleName}
     >
