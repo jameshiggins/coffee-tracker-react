@@ -41,13 +41,21 @@ export default function EmailVerificationBanner() {
           </>
         )}
       </span>
-      <button
-        onClick={resend}
-        disabled={status === 'sending' || status === 'sent'}
-        className="bg-yellow-800 hover:bg-yellow-900 disabled:opacity-50 text-white text-xs px-3 py-1 rounded dark:bg-yellow-500"
-      >
-        {status === 'sent' ? 'Sent ✓' : status === 'sending' ? 'Sending…' : 'Resend link'}
-      </button>
+      <span className="flex items-center gap-2">
+        {/* Always-mounted live region so screen readers announce the resend
+            outcome; visually it carries the inline failure message (success
+            is already visible on the button itself as "Sent ✓"). */}
+        <span role="status" className="text-xs font-medium text-red-800 dark:text-red-300">
+          {status === 'error' && "Couldn't send — try again in a minute."}
+        </span>
+        <button
+          onClick={resend}
+          disabled={status === 'sending' || status === 'sent'}
+          className="bg-yellow-800 hover:bg-yellow-900 disabled:opacity-50 text-white text-xs px-3 py-1 rounded dark:bg-yellow-300 dark:text-yellow-950 dark:hover:bg-yellow-200"
+        >
+          {status === 'sent' ? 'Sent ✓' : status === 'sending' ? 'Sending…' : 'Resend link'}
+        </button>
+      </span>
     </div>
   );
 }
