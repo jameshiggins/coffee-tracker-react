@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { countryName } from '../utils/countries.js';
 import { useShowHistorical } from '../hooks/useShowHistorical.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
