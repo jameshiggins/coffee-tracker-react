@@ -85,10 +85,14 @@ export default function App() {
       {/* Full-bleed on phone (no outer padding / card chrome) so it reads as a
           native app; the boxed 1400px card returns at sm:+. */}
       <div className="app-shell sm:p-5">
-        <div className="max-w-[1400px] mx-auto bg-surface sm:rounded-2xl sm:shadow-xl sm:border sm:border-border overflow-hidden">
+        {/* No overflow-hidden here (previously clipped to the rounded corners) --
+            it would break `position: sticky` for any descendant, e.g. the Beans
+            page filter bar. Header/footer each round + clip their own corners
+            below instead, so the boxed card still looks seamless at sm:+. */}
+        <div className="max-w-[1400px] mx-auto bg-surface sm:rounded-2xl sm:shadow-xl sm:border sm:border-border">
           {/* Modern light header: brand bar + scrollable icon nav. Replaces the
               former brown gradient hero so the directory leads, not the chrome. */}
-          <header className="app-safe-top bg-surface border-b border-border">
+          <header className="app-safe-top bg-surface border-b border-border sm:rounded-t-2xl overflow-hidden">
             <div className="px-4 sm:px-6 md:px-8">
               <div className="flex items-center justify-between gap-2 py-3 sm:py-4">
                 <Link to="/" className="inline-flex shrink-0 rounded-lg hover:opacity-80 transition-opacity" aria-label="Roastmap — home">
@@ -147,7 +151,7 @@ export default function App() {
           </Suspense>
           </main>
 
-          <footer className="app-safe-bottom border-t border-border mt-6 px-4 sm:px-6 py-6 text-xs text-fg-muted">
+          <footer className="app-safe-bottom bg-surface border-t border-border mt-6 px-4 sm:px-6 py-6 text-xs text-fg-muted sm:rounded-b-2xl overflow-hidden">
             <div className="max-w-6xl mx-auto flex flex-col gap-5 sm:flex-row sm:justify-between">
               <div className="max-w-xs">
                 <Logo size="sm" />

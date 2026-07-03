@@ -284,8 +284,16 @@ export default function BeansPage() {
 
       {/* ---------- Filter bar — Type → Roast → Region → Process → Varietal → Elevation → Price → Note ---------- */}
       {/* Sort is intentionally NOT in this group — it lives in its own
-          right-aligned slot below so it reads as a sort, not a filter. */}
-      <div className="bg-surface rounded-xl border border-border p-3 mb-4">
+          right-aligned slot below so it reads as a sort, not a filter.
+          Desktop only (sm:+): sticky under the app header so filters stay
+          reachable while scrolling a long bean list. Mobile is unaffected —
+          screen space is too tight there and the "Filters" toggle already
+          keeps the row short. top-2 (not 0) needs no ancestor overflow-hidden
+          (see App.jsx) and no header-height math: the header isn't sticky, so
+          it scrolls fully out of view before this bar's sticky threshold is
+          ever reached. z-30 matches FilterDropdown's own sm:z-30 panels,
+          which stack correctly inside this bar's stacking context. */}
+      <div className="bg-surface rounded-xl border border-border p-3 mb-4 sm:sticky sm:top-2 sm:z-30">
        {/* Mobile: a single "Filters" toggle replaces the wall of dropdowns.
            Search stays out here (primary action). sm:+ hides this row and
            shows the full inline filter group below, exactly as before. */}
