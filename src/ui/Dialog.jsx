@@ -76,9 +76,16 @@ const Description = forwardRef(function DialogDescription({ className, ...props 
  * Pass `title` for the common case of a header row with a built-in close
  * button. Pass `hideTitle` to make the title visually hidden but still
  * accessible (required by Radix for a11y).
+ *
+ * `bare` skips the default panel chrome AND centering (surface, border,
+ * width, padding, scroll, translate) keeping only `fixed z-50` — for
+ * consumers like image lightboxes that bring their own layout. `cn` is a
+ * naive join (no tailwind-merge), so "override via className" can't beat
+ * the defaults reliably; opting out is the honest escape hatch.
+ * `overlayClassName` replaces the default backdrop tint the same way.
  */
 const Content = forwardRef(function DialogContent(
-  { className, children, title, hideTitle = false, ...rest },
+  { className, children, title, hideTitle = false, bare = false, overlayClassName, ...rest },
   ref
 ) {
   return (
@@ -86,7 +93,8 @@ const Content = forwardRef(function DialogContent(
       <RadixDialog.Overlay
         data-testid="dialog-overlay"
         className={cn(
-          'fixed inset-0 z-50 bg-black/40',
+          'fixed inset-0 z-50',
+          overlayClassName || 'bg-black/40',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
         )}
@@ -94,9 +102,10 @@ const Content = forwardRef(function DialogContent(
       <RadixDialog.Content
         ref={ref}
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
-          'w-[92vw] max-w-md max-h-[85vh] overflow-y-auto',
-          'bg-surface text-fg rounded-xl border border-border shadow-xl p-5',
+          'fixed z-50',
+          !bare && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+          !bare && 'w-[92vw] max-w-md max-h-[85vh] overflow-y-auto',
+          !bare && 'bg-surface text-fg rounded-xl border border-border shadow-xl p-5',
           'focus:outline-none',
           className
         )}

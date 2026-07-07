@@ -40,7 +40,7 @@ const SIZES = {
 
 const BASE =
   'inline-flex items-center rounded-full border ' +
-  'transition-all whitespace-nowrap';
+  'transition-colors whitespace-nowrap';
 
 const INTERACTIVE =
   'cursor-pointer hover:brightness-95 ' +

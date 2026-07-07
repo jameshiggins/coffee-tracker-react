@@ -22,7 +22,19 @@ export function AuthProvider({ children }) {
     fetch(`${API_BASE}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : Promise.reject(r))
       .then((d) => setUser(d.user))
-      .catch(() => { setToken(null); localStorage.removeItem(TOKEN_KEY); })
+      .catch((err) => {
+        // Only a definitive "this token is no good" (401/403) logs the user
+        // out. `err` is the Response itself for HTTP failures (see the
+        // Promise.reject(r) above) but a TypeError for network failures, so
+        // sniff for a numeric status instead of assuming a shape. On network
+        // blips / 5xx we keep the stored token: user stays null for now and
+        // the next mount retries with the same token.
+        const status = typeof err?.status === 'number' ? err.status : null;
+        if (status === 401 || status === 403) {
+          setToken(null);
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      })
       .finally(() => setLoading(false));
   }, [token]);
 

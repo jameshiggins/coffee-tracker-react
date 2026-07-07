@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
+import Field from '../ui/Field.jsx';
+
+// Match the page's original label treatment (Field's default is text-sm).
+const LABEL_CLASS = 'text-xs font-normal uppercase tracking-wide text-fg-muted';
 
 /**
  * Q15a: forgot-password form. Always shows the same success message
@@ -40,12 +44,11 @@ export default function ForgotPassword() {
     <div className="p-6 max-w-md mx-auto">
       <h1 className="text-2xl font-bold text-fg mb-4">Forgot password?</h1>
       <form onSubmit={submit} className="space-y-3 bg-surface p-5 rounded-xl border border-border shadow-sm">
-        <div>
-          <label className="text-xs uppercase tracking-wide text-fg-muted">Email</label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                 autoComplete="email"
+        <Field label="Email" labelClassName={LABEL_CLASS}>
+          <input type="email" name="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                 autoComplete="email" spellCheck={false}
                  className="w-full p-2 border border-border rounded-md focus:outline-none focus:border-accent bg-surface text-fg placeholder:text-fg-subtle" />
-        </div>
+        </Field>
         <button type="submit" disabled={submitting}
                 className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg py-2 rounded-md font-medium">
           {submitting ? 'Sending…' : 'Send reset link'}

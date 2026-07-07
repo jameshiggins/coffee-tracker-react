@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { countryName } from '../utils/countries.js';
 import { useShowHistorical } from '../hooks/useShowHistorical.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
@@ -11,6 +10,7 @@ import BeanGrid from '../components/BeanGrid.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import Icon from '../components/Icon.jsx';
 import { SkeletonBeanCard } from '../ui/Skeleton.jsx';
+import Snackbar from '../ui/Snackbar.jsx';
 import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList } from '../utils/beanFilters.js';
 import {
   filterAndSortBeans,
@@ -63,6 +63,11 @@ export default function BeansPage() {
   // Mobile-only: a floating "Filters" button that fades in once the inline
   // filter bar has scrolled away (mobile#4).
   const [showFilterFab, setShowFilterFab] = useState(false);
+  // Transient action bar shown when a filter is added/removed: it confirms the
+  // change (the active-filter chips can be below the fold / behind an open
+  // dropdown) AND offers an Undo. See <Snackbar>.
+  const [snackbar, setSnackbar] = useState(null);
+  const snackbarSeq = useRef(0);
 
   const { filters, setFilter, clearFilter, clearAll, activeFilterChips, params, setParams } =
     useDirectoryFilters({
@@ -173,6 +178,50 @@ export default function BeansPage() {
     [beans, filters, showHistorical]
   );
 
+  // Show the filter action bar (a Snackbar with an Undo). A fresh sequence id
+  // per call re-keys <Snackbar> so a repeat action replays the slide-in and
+  // restarts its timer instead of reusing the live one.
+  const showSnackbar = useCallback((kind, message, key, before) => {
+    snackbarSeq.current += 1;
+    setSnackbar({ id: snackbarSeq.current, kind, message, key, before });
+  }, []);
+
+  // Apply a filter change immediately, then surface a Snackbar that confirms it
+  // and offers an Undo (revert this one key to its previous value). Shared by
+  // the filter dropdowns and the in-card chip toggles so every filter action
+  // gets the same feedback. Sort and the free-text search box deliberately
+  // bypass this and call setFilter directly — neither shows as a filter chip,
+  // and an Undo bar on every search keystroke would be noise.
+  function applyFilter(key, value) {
+    const before = filters[key];
+    setFilter(key, value);
+    // Undo reverts THIS key to `before`. We stash (key, before) and run the
+    // actual setFilter at render time against the LIVE params (see <Snackbar>
+    // below) — so Undo can't go stale and only touches this one key, keeping
+    // any filters the user added after this action.
+
+    const label = LABELS[key] || key;
+    if (MULTI_KEYS.has(key)) {
+      const beforeArr = Array.isArray(before) ? before : [];
+      const afterArr = Array.isArray(value) ? value : [];
+      if (afterArr.length > beforeArr.length) {
+        const added = afterArr.find((v) => !beforeArr.includes(v));
+        showSnackbar('added', `Added ${label}: ${labelForValue(key, added, roasters)}`, key, before);
+      } else if (afterArr.length < beforeArr.length) {
+        if (beforeArr.length - afterArr.length === 1) {
+          const removed = beforeArr.find((v) => !afterArr.includes(v));
+          showSnackbar('removed', `Removed ${label}: ${labelForValue(key, removed, roasters)}`, key, before);
+        } else {
+          showSnackbar('removed', `Cleared ${label} filter`, key, before);
+        }
+      }
+    } else if (value) {
+      showSnackbar('added', `Added ${label}: ${labelForValue(key, value, roasters)}`, key, before);
+    } else {
+      showSnackbar('removed', `Removed ${label} filter`, key, before);
+    }
+  }
+
   // BeanCard chip-click bridge. Multi-fields TOGGLE the value (add if
   // missing, remove if already there); single-fields REPLACE.
   function onChipClick(filterKey, value) {
@@ -185,10 +234,10 @@ export default function BeansPage() {
       const needle = targetKey === 'note' ? String(value).toLowerCase() : normalize(value);
       const hasIt = current.includes(needle);
       const next = hasIt ? current.filter((v) => v !== needle) : [...current, needle];
-      setFilter(targetKey, next);
+      applyFilter(targetKey, next);
     } else {
       const current = filters[targetKey];
-      setFilter(targetKey, current === value ? '' : value);
+      applyFilter(targetKey, current === value ? '' : value);
     }
   }
 
@@ -235,8 +284,16 @@ export default function BeansPage() {
 
       {/* ---------- Filter bar — Type → Roast → Region → Process → Varietal → Elevation → Price → Note ---------- */}
       {/* Sort is intentionally NOT in this group — it lives in its own
-          right-aligned slot below so it reads as a sort, not a filter. */}
-      <div className="bg-surface rounded-xl border border-border p-3 mb-4">
+          right-aligned slot below so it reads as a sort, not a filter.
+          Desktop only (sm:+): sticky under the app header so filters stay
+          reachable while scrolling a long bean list. Mobile is unaffected —
+          screen space is too tight there and the "Filters" toggle already
+          keeps the row short. top-2 (not 0) needs no ancestor overflow-hidden
+          (see App.jsx) and no header-height math: the header isn't sticky, so
+          it scrolls fully out of view before this bar's sticky threshold is
+          ever reached. z-30 matches FilterDropdown's own sm:z-30 panels,
+          which stack correctly inside this bar's stacking context. */}
+      <div className="bg-surface rounded-xl border border-border p-3 mb-4 sm:sticky sm:top-2 sm:z-30">
        {/* Mobile: a single "Filters" toggle replaces the wall of dropdowns.
            Search stays out here (primary action). sm:+ hides this row and
            shows the full inline filter group below, exactly as before. */}
@@ -288,13 +345,13 @@ export default function BeansPage() {
             { value: 'single-origin', label: 'Single Origin' },
             { value: 'blend', label: 'Blend' },
           ]}
-          onPick={(v) => setFilter('blend', v)}
+          onPick={(v) => applyFilter('blend', v)}
         />
         <FilterDropdown
           label="Roaster"
           value={filters.roaster}
           options={roasterOptions}
-          onPick={(v) => setFilter('roaster', v)}
+          onPick={(v) => applyFilter('roaster', v)}
         />
         <FilterDropdown
           label="Roast"
@@ -302,7 +359,7 @@ export default function BeansPage() {
           multi
           value={filters.roast}
           options={roastOptions}
-          onPick={(v) => setFilter('roast', v)}
+          onPick={(v) => applyFilter('roast', v)}
         />
         <FilterDropdown
           label="Region"
@@ -310,7 +367,7 @@ export default function BeansPage() {
           multi
           value={filters.country}
           options={originOptions}
-          onPick={(v) => setFilter('country', v)}
+          onPick={(v) => applyFilter('country', v)}
         />
         <FilterDropdown
           label="Process"
@@ -318,7 +375,7 @@ export default function BeansPage() {
           multi
           value={filters.process}
           options={processOptions}
-          onPick={(v) => setFilter('process', v)}
+          onPick={(v) => applyFilter('process', v)}
         />
         <FilterDropdown
           label="Varietal"
@@ -326,7 +383,7 @@ export default function BeansPage() {
           multi
           value={filters.varietal}
           options={varietalOptions}
-          onPick={(v) => setFilter('varietal', v)}
+          onPick={(v) => applyFilter('varietal', v)}
         />
         <FilterDropdown
           label="Elevation"
@@ -334,21 +391,21 @@ export default function BeansPage() {
           multi
           value={filters.elevation}
           options={elevationOptions}
-          onPick={(v) => setFilter('elevation', v)}
+          onPick={(v) => applyFilter('elevation', v)}
         />
         <FilterDropdown
           label="Price ¢/g"
           multi
           value={filters.cpg}
           options={cpgOptions}
-          onPick={(v) => setFilter('cpg', v)}
+          onPick={(v) => applyFilter('cpg', v)}
         />
         <FilterDropdown
           label="Tasting note"
           multi
           value={filters.note}
           options={noteOptions}
-          onPick={(v) => setFilter('note', v)}
+          onPick={(v) => applyFilter('note', v)}
         />
         {/* Desktop search — hidden on mobile (the toggle row has its own). */}
         <label htmlFor="beans-search" className="sr-only">
@@ -490,6 +547,18 @@ export default function BeansPage() {
           )}
         </button>
       )}
+
+      {/* ---------- Filter add/remove action bar (confirm + Undo) ---------- */}
+      {snackbar && (
+        <Snackbar
+          key={snackbar.id}
+          kind={snackbar.kind}
+          message={snackbar.message}
+          actionLabel="Undo"
+          onAction={() => setFilter(snackbar.key, snackbar.before)}
+          onDismiss={() => setSnackbar(null)}
+        />
+      )}
     </div>
   );
 }
@@ -506,18 +575,17 @@ function RoasterPanel({ roaster, onClear }) {
     <div className="bg-surface border border-border-strong rounded-xl p-5 mb-4 shadow-sm">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
-          <nav aria-label="Breadcrumb" className="text-xs text-fg-muted mb-1">
-            <Link to="/roasters" className="hover:text-fg underline">Roasters</Link>
-            <span aria-hidden="true" className="mx-1.5">›</span>
-            <span className="text-fg-subtle">{roaster.name}</span>
-          </nav>
+          {/* No breadcrumb here: it'd be a one-level "Roasters › {name}" whose
+              second segment just repeats the <h2> below and whose first repeats
+              the nav tab + the back link beside the title. The title + a single
+              clear back-link carry the context without the redundancy. */}
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold text-fg">{roaster.name}</h2>
             <button
               onClick={onClear}
-              className="text-xs text-fg-muted hover:text-fg underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-muted px-2 py-1 rounded-md transition-colors"
             >
-              ← Show all roasters
+              <Icon name="arrowLeft" size={13} /> All beans
             </button>
           </div>
           {addressParts.length > 0 && (
