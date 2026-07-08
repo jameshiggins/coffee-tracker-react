@@ -31,7 +31,7 @@ export default function Privacy() {
       <Section title="What we collect">
         <ul className="list-disc pl-6 space-y-1">
           <li><strong>Account info:</strong> email address (required), display name, optional avatar URL.</li>
-          <li><strong>Content you create:</strong> tastings (rating, notes, brew method, date), wishlist entries.</li>
+          <li><strong>Content you create:</strong> reviews (rating, notes, brew method, date), wishlist entries.</li>
           <li><strong>Login method:</strong> if you sign in with Google, we receive your Google account ID and avatar URL.</li>
           <li><strong>Approximate location:</strong> we use your IP address (via <a className="underline" href="https://ipapi.co" target="_blank" rel="noopener noreferrer">ipapi.co</a>) to suggest nearby roasters. You can override or clear this in your browser at any time.</li>
           <li><strong>Standard server logs:</strong> IP, timestamp, URL, user agent — kept ~30 days.</li>
@@ -57,7 +57,7 @@ export default function Privacy() {
 
       <Section title="Public vs. private content">
         <p>
-          Each tasting has a <em>public</em> toggle. Public tastings appear on the bean's page,
+          Each review has a <em>public</em> toggle. Public reviews appear on the bean's page,
           on your public profile (<code>/u/your-name</code>), and at a permalink (<code>/t/123</code>).
           Private tastings are visible only to you. Your wishlist is always private.
         </p>

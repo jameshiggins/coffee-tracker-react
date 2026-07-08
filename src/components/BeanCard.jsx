@@ -280,68 +280,66 @@ export default function BeanCard({
           {/* Variants table — narrower padding + scrollable on mobile,
               bag size shown grams-only on small screens (lb suffix dropped). */}
           {coffee.variants?.length > 0 && (
-            <div className="mb-5 border border-border rounded-lg overflow-x-auto">
-              <table className="w-full text-sm min-w-[440px]">
-                <thead>
-                  <tr className="bg-surface-muted text-fg text-xs uppercase tracking-wide">
-                    <th className="text-left px-2 sm:px-4 py-2">Container</th>
-                    <th className="text-right px-2 sm:px-4 py-2">Price</th>
-                    <th className="text-right px-2 sm:px-4 py-2">¢/g</th>
-                    <th className="text-center px-2 sm:px-4 py-2">Stock</th>
-                    <th className="text-right px-2 sm:px-4 py-2">Buy</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {coffee.variants.map((v) => (
-                    <tr key={v.id} className={!v.in_stock ? 'opacity-40' : ''}>
-                      <td className="px-2 sm:px-4 py-2 font-medium text-fg whitespace-nowrap">
-                        {v.source_size_label ? (
-                          <>
-                            <span>{v.source_size_label}</span>
-                            {/* Only show the parenthetical grams when the
-                                source label doesn't already include them —
-                                "100 g tin" should NOT render as
-                                "100 g tin (100g)". */}
-                            {!labelContainsGrams(v.source_size_label, v.bag_weight_grams) && (
-                              <span className="text-fg-subtle text-[11px] ml-1">({v.bag_weight_grams}g)</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <span className="sm:hidden">{v.bag_weight_grams}g</span>
-                            <span className="hidden sm:inline">{formatBagWeight(v.bag_weight_grams)}</span>
-                          </>
-                        )}
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 text-right font-medium text-fg whitespace-nowrap">
-                        {v.currency_code !== 'CAD' && <span className="text-fg-subtle text-xs mr-1">{v.currency_code}</span>}
-                        ${v.price.toFixed(2)}
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 text-right text-fg-muted font-mono text-xs whitespace-nowrap">{v.cents_per_gram?.toFixed(1)}¢</td>
-                      <td className="px-2 sm:px-4 py-2 text-center">
-                        <span
-                          className={`inline-block w-2 h-2 rounded-full ${v.in_stock ? 'bg-emerald-500' : 'bg-red-400'}`}
-                          title={v.in_stock ? 'In stock' : 'Out of stock'}
-                        />
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 text-right">
-                        {v.purchase_link && !coffee.is_removed && v.in_stock ? (
-                          <a
-                            href={v.purchase_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block bg-accent hover:bg-accent-hover text-accent-fg text-xs font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
-                          >
-                            Buy ↗
-                          </a>
-                        ) : (
-                          <span className="text-fg-subtle text-xs">—</span>
-                        )}
-                      </td>
+            <div className="mb-5 border border-border rounded-lg overflow-hidden">
+              {/* Mobile: Buy-first stacked rows. The table needed a horizontal
+                  scroll to reach Buy (min-w > phone width); here the action is
+                  the first thing you reach — no dragging right. */}
+              <div className="sm:hidden divide-y divide-border">
+                {coffee.variants.map((v) => (
+                  <div key={v.id} className={`flex items-center gap-3 px-3 py-2.5 ${!v.in_stock ? 'opacity-40' : ''}`}>
+                    <div className="w-[4.5rem] flex-shrink-0">
+                      <VariantBuy v={v} isRemoved={coffee.is_removed} className="block text-center" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-fg"><VariantSize v={v} /></div>
+                      <div className="text-xs text-fg-muted tabular-nums">
+                        {v.currency_code !== 'CAD' && <span className="mr-1">{v.currency_code}</span>}
+                        ${v.price.toFixed(2)} · {v.cents_per_gram?.toFixed(1)}¢/g
+                      </div>
+                    </div>
+                    <span
+                      role="img"
+                      aria-label={v.in_stock ? 'In stock' : 'Out of stock'}
+                      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${v.in_stock ? 'bg-emerald-500' : 'bg-red-400'}`}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop (sm+): full table. */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-surface-muted text-fg text-xs uppercase tracking-wide">
+                      <th className="text-left px-4 py-2">Container</th>
+                      <th className="text-right px-4 py-2">Price</th>
+                      <th className="text-right px-4 py-2">¢/g</th>
+                      <th className="text-center px-4 py-2">Stock</th>
+                      <th className="text-right px-4 py-2">Buy</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {coffee.variants.map((v) => (
+                      <tr key={v.id} className={!v.in_stock ? 'opacity-40' : ''}>
+                        <td className="px-4 py-2 font-medium text-fg whitespace-nowrap"><VariantSize v={v} /></td>
+                        <td className="px-4 py-2 text-right font-medium text-fg whitespace-nowrap tabular-nums">
+                          {v.currency_code !== 'CAD' && <span className="text-fg-subtle text-xs mr-1">{v.currency_code}</span>}
+                          ${v.price.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-fg-muted font-mono text-xs whitespace-nowrap">{v.cents_per_gram?.toFixed(1)}¢</td>
+                        <td className="px-4 py-2 text-center">
+                          <span
+                            role="img"
+                            aria-label={v.in_stock ? 'In stock' : 'Out of stock'}
+                            className={`inline-block w-2 h-2 rounded-full ${v.in_stock ? 'bg-emerald-500' : 'bg-red-400'}`}
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-right"><VariantBuy v={v} isRemoved={coffee.is_removed} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -353,12 +351,12 @@ export default function BeanCard({
                   onClick={() => setShowTastingForm(true)}
                   className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
                 >
-                  <Icon name="cup" size={16} /> Add your tasting
+                  <Icon name="cup" size={16} /> Add your review
                 </button>
               )}
               {savedMsg && (
                 <div className="text-sm text-green-700 bg-green-50 border border-green-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30 rounded p-2">
-                  Tasting saved.
+                  Review saved.
                 </div>
               )}
               {showTastingForm && (
@@ -377,12 +375,12 @@ export default function BeanCard({
 
           {/* Recent public tastings (top 3) + "see all" */}
           {tastings === null ? (
-            <div className="text-fg-subtle text-xs italic">Loading tastings…</div>
+            <div className="text-fg-subtle text-xs italic">Loading reviews…</div>
           ) : tastings.length > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-fg">
-                  Recent tastings ({tastings.length})
+                  Recent reviews ({tastings.length})
                 </h4>
                 {tastings.length > 3 && (
                   <button
@@ -402,13 +400,13 @@ export default function BeanCard({
             // names the gap and points to the action — the signed-in "Add your
             // tasting" button above, or a sign-in link for signed-out visitors.
             <p className="text-sm text-fg-muted">
-              No tastings yet.{' '}
+              No reviews yet.{' '}
               {user ? (
                 'Be the first to add one.'
               ) : (
                 <>
                   <Link to="/sign-in" className="font-medium text-accent hover:underline">Sign in</Link>{' '}
-                  to add the first tasting.
+                  to add the first review.
                 </>
               )}
             </p>
@@ -443,6 +441,46 @@ export default function BeanCard({
 }
 
 /* ----------------- helpers ----------------- */
+
+// Variant cells shared by the mobile stacked list and the desktop table so
+// the Buy affordance and size label can't drift between the two layouts.
+function VariantBuy({ v, isRemoved, className = '' }) {
+  if (v.purchase_link && !isRemoved && v.in_stock) {
+    return (
+      <a
+        href={v.purchase_link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`bg-accent hover:bg-accent-hover text-accent-fg text-xs font-medium px-3 py-1 rounded whitespace-nowrap ${className}`}
+      >
+        Buy ↗
+      </a>
+    );
+  }
+  return <span className="text-fg-subtle text-xs">—</span>;
+}
+
+function VariantSize({ v }) {
+  if (v.source_size_label) {
+    return (
+      <>
+        <span>{v.source_size_label}</span>
+        {/* Only append parenthetical grams when the source label doesn't
+            already carry them — "100 g tin" must not become "100 g tin (100g)". */}
+        {!labelContainsGrams(v.source_size_label, v.bag_weight_grams) && (
+          <span className="text-fg-subtle text-[11px] ml-1">({v.bag_weight_grams}g)</span>
+        )}
+      </>
+    );
+  }
+  // Grams-only on mobile, friendly weight (with lb) on desktop.
+  return (
+    <>
+      <span className="sm:hidden">{v.bag_weight_grams}g</span>
+      <span className="hidden sm:inline">{formatBagWeight(v.bag_weight_grams)}</span>
+    </>
+  );
+}
 
 // TONES + ROAST_TONES are imported from ../ui/tones.js (shared with the Chip
 // and Badge primitives) so colours — and their dark-mode variants — stay in
@@ -596,7 +634,7 @@ function AllTastingsModal({ coffee, tastings, open, onOpenChange }) {
       >
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <Dialog.Title className="min-w-0 truncate">
-            All tastings ({tastings.length}) · {coffee.name}
+            All reviews ({tastings.length}) · {coffee.name}
           </Dialog.Title>
           <Dialog.Close
             aria-label="Close"
