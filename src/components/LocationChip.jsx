@@ -3,12 +3,13 @@ import { useUserLocation } from '../hooks/useUserLocation.js';
 import Icon from './Icon.jsx';
 
 /**
- * Header location chip: "Near {City} · change". Click to open a small dropdown
- * with a precise-location request, a manual city pick (major Canadian metros),
- * or "Anywhere" to clear. Pure client-side; persists via useUserLocation.
+ * Location chip: "Near {City}". Click to open a small dropdown with a
+ * precise-location request, a manual city pick (major Canadian metros), or
+ * "Anywhere" to clear. Pure client-side; persists via useUserLocation.
  *
- * Styled with semantic tokens for the themed surface header; truncates so it
- * yields space to the brand + actions on a narrow phone (no overflow).
+ * Lives on the Roasters page next to the "Sort by distance" control it feeds
+ * (moved out of the header). Styled with semantic tokens; truncates so it
+ * never overflows a narrow row.
  */
 const PRESETS = [
   { label: 'Vancouver',  lat: 49.2827, lng: -123.1207 },

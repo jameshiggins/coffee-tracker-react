@@ -12,6 +12,7 @@ import { isCoffeeInStock } from '../utils/stock.js';
 import { haversineKm, formatKm } from '../utils/distance.js';
 import { useShowOutOfStock } from '../hooks/useShowHistorical.js';
 import { useUserLocation } from '../hooks/useUserLocation.js';
+import LocationChip from '../components/LocationChip.jsx';
 import { useDirectoryFilters } from '../hooks/useDirectoryFilters.js';
 import { useSeo } from '../hooks/useSeo.js';
 import Skeleton from '../ui/Skeleton.jsx';
@@ -246,6 +247,9 @@ export default function RoastersPage() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* Location lives here (next to the distance sort it enables), not
+              in the header — set it, then "Sort by distance" lights up. */}
+          <LocationChip />
           {/* Geolocation as a suggestion, not an auto-sort: one tap orders by
               distance; tap again (or pick a sort) to return to alphabetical.
               ALWAYS rendered (disabled until a location is known) so a
@@ -259,7 +263,7 @@ export default function RoastersPage() {
               else { setSort('distance'); setDir('asc'); }
             }}
             aria-pressed={sort === 'distance'}
-            title={location ? undefined : 'Set your location in the top bar to sort by distance'}
+            title={location ? undefined : 'Set your location to sort by distance'}
             className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               sort === 'distance'
                 ? 'bg-accent-soft text-accent'
