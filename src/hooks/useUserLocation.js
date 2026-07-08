@@ -1,67 +1,107 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 const KEY = 'coffee_tracker_location';
 
 /**
+ * Synchronously read the persisted location (or null) from localStorage.
+ * Exposed so callers can make a first-render decision (e.g. default the sort
+ * to nearest-first when an explicit location is already saved) without waiting
+ * for the hook to mount.
+ */
+export function readStoredLocation() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Shared store ─────────────────────────────────────────────────────────
+// Location is APP-WIDE state: the LocationChip sets it, and the Roasters/Beans/
+// Map pages read it to sort + measure distance. Backing it with a single module
+// store (rather than a per-component useState) means every consumer sees the
+// SAME value and re-renders together the instant it changes — so picking a city
+// in the chip immediately re-sorts the roaster list from that city. It also
+// collapses what used to be one IP lookup PER consumer into a single shared one.
+let store = readStoredLocation();
+const listeners = new Set();
+
+function emit() {
+  for (const l of listeners) l();
+}
+
+function subscribe(cb) {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+function getSnapshot() {
+  return store;
+}
+
+/** Update the shared location (or clear with null) + persist, then notify. */
+function writeLocation(next) {
+  store = next;
+  try {
+    if (next) localStorage.setItem(KEY, JSON.stringify(next));
+    else localStorage.removeItem(KEY);
+  } catch {
+    /* private mode / quota — in-memory value still applies for this session */
+  }
+  emit();
+}
+
+// One-time, app-wide IP fallback. Runs at most once per page load, and only if
+// no location is already known (persisted override or a prior lookup).
+let ipLookupStarted = false;
+function maybeStartIpLookup() {
+  if (ipLookupStarted || store) return;
+  ipLookupStarted = true;
+  fetch('https://ipapi.co/json/')
+    .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+    .then((d) => {
+      // Don't clobber a location the user set while the request was in flight.
+      if (store) return;
+      if (d?.latitude && d?.longitude) {
+        writeLocation({
+          lat: Number(d.latitude),
+          lng: Number(d.longitude),
+          label: [d.city, d.region].filter(Boolean).join(', '),
+          source: 'ip',
+        });
+      }
+    })
+    .catch(() => {
+      /* network blocked / rate-limit / privacy ext — silent; stays alphabetical */
+    });
+}
+
+/**
  * Q11+Q12a: best-effort user location for nearest-first sort. Reads any
- * persisted override from localStorage first; if none, hits ipapi.co
- * once on mount to get an approximate city-level lat/lng. The user can
- * override via the header chip — the override is what persists.
+ * persisted override from localStorage first; if none, hits ipapi.co once
+ * (app-wide) to get an approximate city-level lat/lng. The user can override
+ * via the LocationChip — the override is what persists.
  *
- * Returns { location: {lat, lng, label} | null, setLocation, clearLocation }
+ * Returns { location: {lat, lng, label, source} | null, setLocation,
+ * clearLocation, requestPreciseLocation }. `source` is 'ip' (auto-detected),
+ * 'manual' (picked a city), or 'gps' (precise) — callers use it to distinguish
+ * an explicit choice from a passive guess.
  *
- * Failure mode: if ipapi is blocked / errors, location stays null and
- * the rest of the app falls back to alphabetical sort. No user-visible
- * error — sort just isn't location-aware.
+ * Failure mode: if ipapi is blocked / errors, location stays null and the rest
+ * of the app falls back to alphabetical sort. No user-visible error.
  */
 export function useUserLocation() {
-  const [location, setLocationState] = useState(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
+  const location = useSyncExternalStore(subscribe, getSnapshot);
 
   useEffect(() => {
-    if (location) return; // already set (manual override or previous IP lookup)
-    let cancelled = false;
-    fetch('https://ipapi.co/json/')
-      .then((r) => r.ok ? r.json() : Promise.reject(r))
-      .then((d) => {
-        if (cancelled) return;
-        if (d?.latitude && d?.longitude) {
-          const next = {
-            lat: Number(d.latitude),
-            lng: Number(d.longitude),
-            label: [d.city, d.region].filter(Boolean).join(', '),
-            source: 'ip',
-          };
-          setLocationState(next);
-          try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
-        }
-      })
-      .catch(() => { /* network blocked / rate-limit / privacy ext — silent */ });
-    return () => { cancelled = true; };
-  }, [location]);
-
-  function setLocation(next) {
-    setLocationState(next);
-    try {
-      if (next) localStorage.setItem(KEY, JSON.stringify(next));
-      else localStorage.removeItem(KEY);
-    } catch {}
-  }
+    maybeStartIpLookup();
+  }, []);
 
   /**
    * Ask the browser for high-accuracy device location. Requires user
-   * permission grant. Returns a promise that resolves with the new
-   * location or rejects on denial / unavailability.
-   *
-   * Use this when the user wants meter-accurate distance instead of the
-   * city-level IP fallback. Result is persisted to localStorage so we
-   * don't re-prompt on every visit.
+   * permission grant. Returns a promise that resolves with the new location or
+   * rejects on denial / unavailability. Result persists so we don't re-prompt.
    */
   function requestPreciseLocation() {
     return new Promise((resolve, reject) => {
@@ -78,7 +118,7 @@ export function useUserLocation() {
             source: 'gps',
             accuracy_m: Math.round(pos.coords.accuracy ?? 0),
           };
-          setLocation(next);
+          writeLocation(next);
           resolve(next);
         },
         (err) => reject(err),
@@ -89,8 +129,8 @@ export function useUserLocation() {
 
   return {
     location,
-    setLocation,
-    clearLocation: () => setLocation(null),
+    setLocation: writeLocation,
+    clearLocation: () => writeLocation(null),
     requestPreciseLocation,
   };
 }
