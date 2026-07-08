@@ -7,9 +7,11 @@ import Icon from './Icon.jsx';
  * precise-location request, a manual city pick (major Canadian metros), or
  * "Anywhere" to clear. Pure client-side; persists via useUserLocation.
  *
- * Lives on the Roasters page next to the "Sort by distance" control it feeds
- * (moved out of the header). Styled with semantic tokens; truncates so it
- * never overflows a narrow row.
+ * Lives on the Roasters page next to the search. Setting a location IS the
+ * distance-sort control: the optional onLocationSelected callback fires with the
+ * chosen location (or null when cleared) so the page can auto-sort nearest-first
+ * — there's no separate "Sort by distance" button. Styled with semantic tokens;
+ * truncates so it never overflows a narrow row.
  */
 const PRESETS = [
   { label: 'Vancouver',  lat: 49.2827, lng: -123.1207 },
@@ -22,7 +24,7 @@ const PRESETS = [
   { label: 'Halifax',    lat: 44.6488, lng: -63.5752  },
 ];
 
-export default function LocationChip() {
+export default function LocationChip({ onLocationSelected }) {
   const { location, setLocation, clearLocation, requestPreciseLocation } = useUserLocation();
   const [open, setOpen] = useState(false);
   const [gpsState, setGpsState] = useState('idle'); // idle | requesting | denied
@@ -30,7 +32,7 @@ export default function LocationChip() {
   function onPreciseClick() {
     setGpsState('requesting');
     requestPreciseLocation()
-      .then(() => { setGpsState('idle'); setOpen(false); })
+      .then((next) => { setGpsState('idle'); setOpen(false); onLocationSelected?.(next); })
       .catch(() => setGpsState('denied'));
   }
 
@@ -68,7 +70,7 @@ export default function LocationChip() {
           {PRESETS.map((p) => (
             <button
               key={p.label}
-              onClick={() => { setLocation({ ...p, source: 'manual' }); setOpen(false); }}
+              onClick={() => { const next = { ...p, source: 'manual' }; setLocation(next); setOpen(false); onLocationSelected?.(next); }}
               className={`block w-full text-left px-3 py-2.5 sm:py-2 text-sm hover:bg-surface-muted ${
                 location?.label === p.label ? 'font-semibold text-accent' : 'text-fg'
               }`}
@@ -78,7 +80,7 @@ export default function LocationChip() {
           ))}
           <hr className="my-1 border-border" />
           <button
-            onClick={() => { clearLocation(); setOpen(false); }}
+            onClick={() => { clearLocation(); setOpen(false); onLocationSelected?.(null); }}
             className="block w-full text-left px-3 py-2.5 sm:py-2 text-sm hover:bg-surface-muted text-fg-muted"
           >
             Anywhere

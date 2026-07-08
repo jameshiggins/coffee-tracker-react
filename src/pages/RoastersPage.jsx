@@ -11,7 +11,7 @@ import { countryName } from '../utils/countries.js';
 import { isCoffeeInStock } from '../utils/stock.js';
 import { haversineKm, formatKm } from '../utils/distance.js';
 import { useShowOutOfStock } from '../hooks/useShowHistorical.js';
-import { useUserLocation } from '../hooks/useUserLocation.js';
+import { useUserLocation, readStoredLocation } from '../hooks/useUserLocation.js';
 import LocationChip from '../components/LocationChip.jsx';
 import { useDirectoryFilters } from '../hooks/useDirectoryFilters.js';
 import { useSeo } from '../hooks/useSeo.js';
@@ -93,11 +93,25 @@ export default function RoastersPage() {
     multiKeys: NO_MULTI_KEYS,
   });
   const { q: search, region, country } = filters;
-  // Default to alphabetical (by name). Detected geolocation does NOT silently
-  // re-sort the list — it's surfaced as a one-tap "Sort by distance" suggestion
-  // (the chip below) that the visitor opts into.
-  const [sort, setSort] = useState('name');
+  // Sort defaults to alphabetical, EXCEPT when the visitor has already saved an
+  // EXPLICIT location (picked a city or granted precise GPS) — then nearest-first
+  // is what they asked for, so we open on it. An IP-detected location does NOT
+  // auto-sort: it resolves async and would both surprise-reorder the list and
+  // cause CLS. Picking a location later flips the sort via onLocationSelected.
+  const [sort, setSort] = useState(() => {
+    const loc = readStoredLocation();
+    return loc && loc.source !== 'ip' ? 'distance' : 'name';
+  });
   const [dir, setDir] = useState('asc');
+
+  // Selecting a city / precise location auto-sorts by distance (that's the whole
+  // point of setting one); "Anywhere" clears it and returns to alphabetical.
+  // This is why there's no separate "Sort by distance" button — the location
+  // chip IS the control. The sort dropdown still lets you pick another order.
+  function onLocationSelected(next) {
+    setDir('asc');
+    setSort(next ? 'distance' : 'name');
+  }
 
   useEffect(() => {
     api.listRoasters()
@@ -247,32 +261,11 @@ export default function RoastersPage() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {/* Location lives here (next to the distance sort it enables), not
-              in the header — set it, then "Sort by distance" lights up. */}
-          <LocationChip />
-          {/* Geolocation as a suggestion, not an auto-sort: one tap orders by
-              distance; tap again (or pick a sort) to return to alphabetical.
-              ALWAYS rendered (disabled until a location is known) so a
-              late-resolving IP location doesn't pop the chip in and shift the
-              layout — that pop-in was the page's main CLS contributor. */}
-          <button
-            type="button"
-            disabled={!location}
-            onClick={() => {
-              if (sort === 'distance') { setSort('name'); setDir('asc'); }
-              else { setSort('distance'); setDir('asc'); }
-            }}
-            aria-pressed={sort === 'distance'}
-            title={location ? undefined : 'Set your location to sort by distance'}
-            className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              sort === 'distance'
-                ? 'bg-accent-soft text-accent'
-                : 'bg-surface-muted text-fg-muted hover:text-fg hover:bg-border'
-            }`}
-          >
-            <Icon name="pin" size={15} />
-            {sort === 'distance' ? 'Nearest first' : 'Sort by distance'}
-          </button>
+          {/* Setting a location IS the distance-sort control — picking a city or
+              precise location auto-orders the list nearest-first (see
+              onLocationSelected), so there's no separate "Sort by distance"
+              button. Lives here by the search, not in the header. */}
+          <LocationChip onLocationSelected={onLocationSelected} />
           {allCountries.length > 1 && (
             <select value={country} onChange={(e) => setFilter('country', e.target.value)} aria-label="Filter by country" className={selectClass}>
               <option value="">All countries</option>
