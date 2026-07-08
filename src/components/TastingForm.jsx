@@ -140,11 +140,11 @@ export default function TastingForm({ coffee, tasting, onSaved, onCancel }) {
 
       <div className="flex gap-2 justify-end pt-1">
         {onCancel && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          <Button type="button" variant="ghost" size="md" onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="submit" size="sm" loading={submitting}>
+        <Button type="submit" size="md" loading={submitting}>
           {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Save tasting'}
         </Button>
       </div>

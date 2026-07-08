@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { ratingToStars, formatStars } from '../utils/rating.js';
 import ReportTastingButton from '../components/ReportTastingButton.jsx';
+import { formatDate } from '../utils/format.js';
 
 /**
  * /t/:id — per-tasting public permalink. 404s if the tasting is private.
@@ -44,7 +45,7 @@ export default function TastingPermalink() {
               {tasting.user.display_name || `User #${tasting.user.id}`}
             </Link>
             <div className="text-xs text-fg-muted">
-              {tasting.tasted_on}{tasting.brew_method ? ` · ${tasting.brew_method}` : ''}
+              <span className="whitespace-nowrap">{formatDate(tasting.tasted_on)}</span>{tasting.brew_method ? ` · ${tasting.brew_method}` : ''}
             </div>
           </div>
           <div className="text-2xl text-fg-muted flex-shrink-0">

@@ -9,8 +9,12 @@ import { authFetch, useAuth } from '../auth.jsx';
 export default function EmailVerificationBanner() {
   const { token, user, verificationEmailSent } = useAuth();
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+  // Dismiss is per-visit (sessionStorage): the nudge comes back next session
+  // so verification still happens eventually, but the banner can't nag every
+  // page of the current one.
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('rm_verify_dismissed') === '1');
 
-  if (!user || user.email_verified) return null;
+  if (!user || user.email_verified || dismissed) return null;
 
   // If the initial send is known to have failed (and the user hasn't
   // successfully resent yet), be honest rather than claiming we sent a link
@@ -54,6 +58,14 @@ export default function EmailVerificationBanner() {
           className="bg-yellow-800 hover:bg-yellow-900 disabled:opacity-50 text-white text-xs px-3 py-1 rounded dark:bg-yellow-300 dark:text-yellow-950 dark:hover:bg-yellow-200"
         >
           {status === 'sent' ? 'Sent ✓' : status === 'sending' ? 'Sending…' : 'Resend link'}
+        </button>
+        <button
+          onClick={() => { sessionStorage.setItem('rm_verify_dismissed', '1'); setDismissed(true); }}
+          aria-label="Dismiss for this visit"
+          title="Dismiss for this visit"
+          className="text-yellow-900/70 hover:text-yellow-900 dark:text-yellow-300/70 dark:hover:text-yellow-200 px-2 py-1 rounded text-base leading-none"
+        >
+          ✕
         </button>
       </span>
     </div>

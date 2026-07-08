@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatCAD } from '../utils/format.js';
 
 /**
  * Roaster popup contents shown above a map marker. Uses inline styles
@@ -33,7 +34,7 @@ export default function MapPopupCard({ roaster, inStockCount }) {
       </div>
       {roaster.free_shipping_over != null && (
         <div style={{ fontSize: 11, color: '#7a5a3a', marginTop: 2 }}>
-          Free shipping over ${Number(roaster.free_shipping_over).toFixed(0)}
+          Free shipping over {formatCAD(roaster.free_shipping_over, { cents: false })}
         </div>
       )}
 

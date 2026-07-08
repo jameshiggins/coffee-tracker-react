@@ -5,6 +5,7 @@ import TastingForm from '../components/TastingForm.jsx';
 import Button from '../ui/Button.jsx';
 import Dialog from '../ui/Dialog.jsx';
 import StarRating from '../ui/StarRating.jsx';
+import { formatDate } from '../utils/format.js';
 
 function tastingName(t) {
   return t.coffee?.name || t.coffee_snapshot?.name || `Coffee #${t.coffee_id}`;
@@ -128,13 +129,18 @@ function TastingRow({ tasting: t, onEdit, onDelete }) {
           src={img}
           alt=""
           loading="lazy"
-          className={`w-20 h-20 rounded-md object-cover flex-shrink-0 border border-border ${removed ? 'grayscale' : ''}`}
+          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover flex-shrink-0 border border-border ${removed ? 'grayscale' : ''}`}
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
       )}
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-start gap-3">
-          <div className="min-w-0">
+        {/* flex-wrap + a real minimum on the title column: on narrow phones
+            (360px CSS) padding + thumbnail + the star row left the title a
+            ~80px micro-column — every word wrapped and the ISO date broke at
+            its hyphens (real device screenshot). Below 9rem the rating block
+            wraps under the title instead of squeezing it. */}
+        <div className="flex flex-wrap justify-between items-start gap-x-3 gap-y-1">
+          <div className="flex-1 min-w-[9rem]">
             {c ? (
               <Link to={`/c/${c.id}`} className={`text-fg font-medium hover:underline ${removed ? 'line-through' : ''}`}>
                 {name}
@@ -144,7 +150,8 @@ function TastingRow({ tasting: t, onEdit, onDelete }) {
             )}
             <div className="text-xs text-fg-subtle">
               {c && <><Link to={`/roasters/${c.roaster.slug}`} className="hover:underline">{c.roaster.name}</Link>{' · '}</>}
-              {t.tasted_on}{t.brew_method ? ` · ${t.brew_method}` : ''}
+              <span className="whitespace-nowrap">{formatDate(t.tasted_on)}</span>
+              {t.brew_method ? <> · <span className="whitespace-nowrap">{t.brew_method}</span></> : null}
             </div>
             {removed && (
               <div className="inline-block mt-1 text-[11px] sm:text-[10px] uppercase tracking-wide bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30">
@@ -152,7 +159,7 @@ function TastingRow({ tasting: t, onEdit, onDelete }) {
               </div>
             )}
           </div>
-          <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+          <div className="text-right flex-shrink-0 flex flex-col items-end gap-1 ml-auto">
             {t.rating ? (
               <StarRating value={t.rating / 2} readOnly size={15} />
             ) : (
@@ -165,8 +172,8 @@ function TastingRow({ tasting: t, onEdit, onDelete }) {
         </div>
         {t.notes && <div className="text-sm text-fg mt-2 italic whitespace-pre-line">{t.notes}</div>}
         <div className="flex gap-1 mt-3 pt-2 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onEdit}>Edit</Button>
-          <Button variant="ghost" size="sm" onClick={onDelete}>Delete</Button>
+          <Button variant="ghost" size="md" onClick={onEdit}>Edit</Button>
+          <Button variant="ghost" size="md" onClick={onDelete}>Delete</Button>
         </div>
       </div>
     </div>
