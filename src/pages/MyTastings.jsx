@@ -48,7 +48,7 @@ export default function MyTastings() {
   if (loading) return <div className="p-10 text-center text-fg">Loading…</div>;
   if (!token) return <Navigate to="/" replace />;
   if (error && !tastings) return <div className="p-10 text-center text-red-700 dark:text-red-400">{error}</div>;
-  if (!tastings) return <div className="p-10 text-center text-fg">Loading your tastings…</div>;
+  if (!tastings) return <div className="p-10 text-center text-fg">Loading your reviews…</div>;
 
   return (
     <div className="p-6">
@@ -58,7 +58,7 @@ export default function MyTastings() {
         )}
         <div>
           <h1 className="text-2xl font-bold text-fg">{user?.display_name || user?.email}</h1>
-          <p className="text-sm text-fg-muted">Your tastings</p>
+          <p className="text-sm text-fg-muted">Your reviews</p>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ export default function MyTastings() {
 
       {tastings.length === 0 ? (
         <div className="bg-surface-muted border border-border p-10 text-center rounded-xl text-fg-muted">
-          No tastings yet. Visit a roaster or browse the <Link to="/beans" className="underline">beans page</Link> and log one.
+          No reviews yet. Visit a roaster or browse the <Link to="/beans" className="underline">beans page</Link> and log one.
         </div>
       ) : (
         <div className="space-y-3">
@@ -78,7 +78,7 @@ export default function MyTastings() {
             editingId === t.id ? (
               <div key={t.id}>
                 <p className="text-xs text-fg-muted mb-1 px-1">
-                  Editing your tasting of <strong className="text-fg">{tastingName(t)}</strong>
+                  Editing your review of <strong className="text-fg">{tastingName(t)}</strong>
                 </p>
                 <TastingForm tasting={t} onSaved={handleSaved} onCancel={() => setEditingId(null)} />
               </div>
@@ -96,9 +96,9 @@ export default function MyTastings() {
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
-        <Dialog.Content title="Delete this tasting?">
+        <Dialog.Content title="Delete this review?">
           <Dialog.Description>
-            Your tasting of <strong className="text-fg">{deleteTarget ? tastingName(deleteTarget) : ''}</strong> will
+            Your review of <strong className="text-fg">{deleteTarget ? tastingName(deleteTarget) : ''}</strong> will
             be removed from your list. This can't be undone.
           </Dialog.Description>
           <div className="flex justify-end gap-2 mt-5">

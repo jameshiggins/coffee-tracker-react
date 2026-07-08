@@ -74,7 +74,7 @@ describe('BeanCard disclosure keyboard access', () => {
     expect(regionId).toBeTruthy();
     await waitFor(() => expect(document.getElementById(regionId)).toBeInTheDocument());
     // Expanded body content (signed-out empty state) is visible.
-    expect(await screen.findByText(/No tastings yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No reviews yet/)).toBeInTheDocument();
   });
 
   it('collapses on Escape and returns focus to the name button', async () => {
@@ -84,14 +84,14 @@ describe('BeanCard disclosure keyboard access', () => {
     const nameBtn = screen.getByRole('button', { name: 'Disclosure Test Blend' });
     nameBtn.focus();
     await user.keyboard('{Enter}');
-    await screen.findByText(/No tastings yet/);
+    await screen.findByText(/No reviews yet/);
 
     // Escape should work from anywhere inside the card, not just the button.
     screen.getByRole('link', { name: 'Sign in' }).focus();
     await user.keyboard('{Escape}');
 
     expect(nameBtn).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText(/No tastings yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No reviews yet/)).not.toBeInTheDocument();
     expect(nameBtn).toHaveFocus();
   });
 
@@ -116,7 +116,7 @@ describe('BeanCard disclosure keyboard access', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
-    expect(dialog).toHaveTextContent('All tastings (4)');
+    expect(dialog).toHaveTextContent('All reviews (4)');
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

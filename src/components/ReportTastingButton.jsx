@@ -11,7 +11,7 @@ export default function ReportTastingButton({ tastingId }) {
 
   function onClick() {
     if (state !== 'idle') return;
-    if (!confirm('Report this tasting for moderator review?')) return;
+    if (!confirm('Report this review for moderator review?')) return;
     setState('sending');
     api.reportTasting(tastingId)
       .then(() => setState('done'))
@@ -30,7 +30,7 @@ export default function ReportTastingButton({ tastingId }) {
       onClick={onClick}
       disabled={state === 'sending'}
       className="text-xs text-fg-subtle hover:text-red-700 dark:hover:text-red-400 underline disabled:opacity-50"
-      title="Report this tasting for review"
+      title="Report this review"
     >
       {state === 'sending' ? 'Reporting…' : 'Report'}
     </button>

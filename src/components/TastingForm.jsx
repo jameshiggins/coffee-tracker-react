@@ -145,7 +145,7 @@ export default function TastingForm({ coffee, tasting, onSaved, onCancel }) {
           </Button>
         )}
         <Button type="submit" size="md" loading={submitting}>
-          {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Save tasting'}
+          {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Save review'}
         </Button>
       </div>
     </form>

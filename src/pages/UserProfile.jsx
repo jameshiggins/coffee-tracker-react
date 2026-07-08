@@ -46,7 +46,7 @@ export default function UserProfile() {
         <div>
           <h1 className="text-2xl font-bold text-fg">{user.display_name}</h1>
           <p className="text-sm text-fg-muted">
-            {tastings.length} public tasting{tastings.length === 1 ? '' : 's'}
+            {tastings.length} public review{tastings.length === 1 ? '' : 's'}
             {avgStars != null && ` · avg ${avgStars.toFixed(1)} / 5 ★`}
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function UserProfile() {
 
       {tastings.length === 0 ? (
         <div className="bg-surface-muted border border-border p-10 text-center rounded-xl text-fg-muted">
-          No public tastings yet.
+          No public reviews yet.
         </div>
       ) : (
         <div className="space-y-3">

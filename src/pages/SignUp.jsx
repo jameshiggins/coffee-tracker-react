@@ -82,7 +82,7 @@ export default function SignUp() {
           <input ref={displayNameRef} type="text" name="display_name" value={displayName}
                  onChange={(e) => setDisplayName(e.target.value)}
                  autoComplete="nickname" spellCheck={false}
-                 placeholder="how others see you in shared tastings"
+                 placeholder="how others see you in shared reviews"
                  className={inputClass(errMsg('display_name'))} />
         </Field>
         <Field label="Email" labelClassName={LABEL_CLASS} error={errMsg('email')}>

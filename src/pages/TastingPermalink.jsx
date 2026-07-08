@@ -22,7 +22,7 @@ export default function TastingPermalink() {
   if (error) {
     return (
       <div className="p-10 text-center">
-        <h2 className="text-2xl font-bold text-red-700 dark:text-red-400">Tasting not found</h2>
+        <h2 className="text-2xl font-bold text-red-700 dark:text-red-400">Review not found</h2>
         <p className="text-fg-muted mt-2">It may have been deleted or set to private.</p>
         <Link to="/" className="text-accent underline mt-4 inline-block">← Home</Link>
       </div>

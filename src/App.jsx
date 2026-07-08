@@ -118,7 +118,7 @@ export default function App() {
                 <NavTab to="/" end icon="list">Roasters</NavTab>
                 <NavTab to="/beans" icon="coffee">Beans</NavTab>
                 <NavTab to="/map" icon="map">Map</NavTab>
-                <SignedInNavTab to="/me" icon="coffee">My Tastings</SignedInNavTab>
+                <SignedInNavTab to="/me" icon="coffee">My Reviews</SignedInNavTab>
                 <SignedInNavTab to="/me/wishlist" icon="heart">Wishlist</SignedInNavTab>
               </nav>
             </div>
