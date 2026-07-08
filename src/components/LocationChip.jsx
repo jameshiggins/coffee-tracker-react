@@ -34,11 +34,11 @@ export default function LocationChip() {
   }
 
   return (
-    <div className="relative inline-block min-w-0">
+    <div className="relative flex min-w-0">
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 max-w-[8.5rem] sm:max-w-none min-h-[40px] px-2.5 py-2 rounded-full text-xs font-medium
+        className="inline-flex items-center gap-1.5 min-w-0 max-w-[8.5rem] sm:max-w-none min-h-[40px] px-2.5 py-2 rounded-full text-xs font-medium
                    text-fg-muted hover:text-fg bg-surface-muted hover:bg-border transition-colors"
       >
         <Icon name="pin" size={14} className="flex-shrink-0" />

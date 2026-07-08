@@ -99,7 +99,12 @@ export default function App() {
                   <span className="sm:hidden"><Logo size="sm" /></span>
                   <span className="hidden sm:inline-flex"><Logo size="md" /></span>
                 </Link>
-                <div className="flex items-center gap-1 min-w-0">
+                {/* flex-1 + justify-end so the cluster owns the leftover row
+                    width; LocationChip is the designated shrinker (min-w-0 +
+                    truncate) — without it, flex min-width:auto let the chip
+                    refuse to shrink and the signed-in extras (avatar, Sign
+                    out) overflowed the viewport on phones. */}
+                <div className="flex flex-1 items-center justify-end gap-1 min-w-0">
                   <LocationChip />
                   <ThemeToggle />
                   <AuthCorner />

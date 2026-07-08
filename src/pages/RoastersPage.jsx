@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
+import { formatCAD } from '../utils/format.js';
 import { countryName } from '../utils/countries.js';
 import { isCoffeeInStock } from '../utils/stock.js';
 import { haversineKm, formatKm } from '../utils/distance.js';
@@ -53,7 +54,7 @@ function priceLabel(range) {
 
 function shipLabel(r) {
   if (r.shipping_cost == null) return null;
-  return Number(r.shipping_cost) === 0 ? 'Free ship' : `$${Number(r.shipping_cost).toFixed(2)} ship`;
+  return Number(r.shipping_cost) === 0 ? 'Free ship' : `${formatCAD(r.shipping_cost)} ship`;
 }
 
 // Roaster avatar — the scraped favicon, or initials on a soft accent tile.
@@ -462,10 +463,10 @@ export default function RoastersPage() {
                       {priceLabel(r._range)}
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.shipping_cost != null ? (Number(r.shipping_cost) === 0 ? 'Free' : `$${Number(r.shipping_cost).toFixed(2)}`) : <span className="text-fg-subtle">—</span>}
+                      {r.shipping_cost != null ? (Number(r.shipping_cost) === 0 ? 'Free' : formatCAD(r.shipping_cost)) : <span className="text-fg-subtle">—</span>}
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.free_shipping_over != null ? `$${Number(r.free_shipping_over).toFixed(2)}` : <span className="text-fg-subtle">—</span>}
+                      {r.free_shipping_over != null ? formatCAD(r.free_shipping_over) : <span className="text-fg-subtle">—</span>}
                     </td>
                   </tr>
                 ))}

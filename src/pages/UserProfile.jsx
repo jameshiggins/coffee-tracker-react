@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { ratingToStars, formatStars } from '../utils/rating.js';
+import { formatDate } from '../utils/format.js';
 
 /**
  * /u/:displayName — public profile page. Lists all of this user's
@@ -81,7 +82,7 @@ export default function UserProfile() {
                             {t.coffee.roaster.name}
                           </Link>
                         )}
-                        {' · '}<Link to={`/t/${t.id}`} className="hover:underline">{t.tasted_on}</Link>
+                        {' · '}<Link to={`/t/${t.id}`} className="hover:underline whitespace-nowrap">{formatDate(t.tasted_on)}</Link>
                         {t.brew_method ? ` · ${t.brew_method}` : ''}
                       </div>
                     </div>

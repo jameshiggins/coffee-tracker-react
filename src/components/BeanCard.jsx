@@ -6,6 +6,7 @@ import { formatBagWeight, labelContainsGrams } from '../utils/units';
 import { ratingToStars, formatStars } from '../utils/rating.js';
 import { splitTastingNotes } from '../utils/flavorColor.js';
 import { TONE_TRIOS, ROAST_TONES } from '../ui/tones.js';
+import { formatDate } from '../utils/format.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
 import WishlistHeart from './WishlistHeart.jsx';
 import Icon from './Icon.jsx';
@@ -565,7 +566,7 @@ function TastingRow({ t }) {
           <div className="text-xs text-fg truncate">
             <span className="font-medium">{t.user.display_name || `User #${t.user.id}`}</span>
             <span className="text-fg-muted mx-1.5">·</span>
-            <span className="text-fg-muted">{t.tasted_on}</span>
+            <span className="text-fg-muted whitespace-nowrap">{formatDate(t.tasted_on)}</span>
             {t.brew_method && <span className="text-fg-muted"> · {t.brew_method}</span>}
           </div>
         </div>
