@@ -43,7 +43,6 @@ export default function BeanCard({
   const [showTastingForm, setShowTastingForm] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
   const [showAllTastingsModal, setShowAllTastingsModal] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const cardRef = useRef(null);
   const headerBtnRef = useRef(null);
@@ -268,14 +267,8 @@ export default function BeanCard({
       {/* ---------- EXPANDED BODY ---------- */}
       {isExpanded && (
         <div id={detailsId} className="border-t border-border p-5" data-no-expand onClick={(e) => e.stopPropagation()}>
-          {/* Roaster blurb — collapsed teaser by default, "Read more" expands inline. */}
-          {coffee.description && (
-            <DescriptionBlock
-              text={coffee.description}
-              expanded={descExpanded}
-              onToggle={() => setDescExpanded((v) => !v)}
-            />
-          )}
+          {/* Roaster blurb — shown in full (no teaser); the card is already open. */}
+          {coffee.description && <DescriptionBlock text={coffee.description} />}
 
           {/* Variants table — narrower padding + scrollable on mobile,
               bag size shown grams-only on small screens (lb suffix dropped). */}
@@ -550,28 +543,15 @@ function roasterInitials(name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-function DescriptionBlock({ text, expanded, onToggle }) {
-  // Show ~1 sentence (or 130 chars, whichever is shorter) collapsed.
-  // "Read more" expands to full text — no "Show less" because nobody who
-  // just clicked Read more wants to immediately re-collapse.
+function DescriptionBlock({ text }) {
+  // The blurb only shows inside an already-expanded card, so there's no reason
+  // to tease it behind a "Read more" — the reader has already opened the card
+  // to read. Show it in full.
   const t = (text || '').trim();
-  const sentenceMatch = t.match(/^[^.!?]+[.!?]/);
-  const teaserCandidate = sentenceMatch ? sentenceMatch[0] : t;
-  const teaser = teaserCandidate.length > 140 ? teaserCandidate.slice(0, 130).trim() + '…' : teaserCandidate;
-  const hasMore = teaser.length < t.length;
+  if (!t) return null;
   return (
     <div className="mb-4">
-      <p className="text-sm text-fg leading-relaxed">
-        {expanded ? t : teaser}
-        {hasMore && !expanded && (
-          <button
-            onClick={onToggle}
-            className="text-accent hover:underline text-xs ml-1"
-          >
-            Read more →
-          </button>
-        )}
-      </p>
+      <p className="text-sm text-fg leading-relaxed">{t}</p>
     </div>
   );
 }
