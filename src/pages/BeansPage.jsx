@@ -579,8 +579,23 @@ function RoasterPanel({ roaster, onClear }) {
               second segment just repeats the <h2> below and whose first repeats
               the nav tab + the back link beside the title. The title + a single
               clear back-link carry the context without the redundancy. */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl font-bold text-fg">{roaster.name}</h2>
+            {/* Open the roaster's storefront in a new tab. Icon-only (the full
+                "Visit roaster's site" button was redundant with this); labelled
+                for screen readers since there's no visible text. */}
+            {roaster.website && (
+              <a
+                href={roaster.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Visit ${roaster.name}'s website (opens in a new tab)`}
+                title="Visit roaster's site"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-muted hover:text-accent hover:bg-surface-muted transition-colors"
+              >
+                <Icon name="externalLink" size={16} />
+              </a>
+            )}
             <button
               onClick={onClear}
               className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-muted px-2 py-1 rounded-md transition-colors"
@@ -596,18 +611,6 @@ function RoasterPanel({ roaster, onClear }) {
           )}
           {roaster.description && (
             <p className="text-sm text-fg mt-3 leading-relaxed line-clamp-3">{roaster.description}</p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {roaster.website && (
-            <a
-              href={roaster.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-accent-fg text-xs px-3 py-2 rounded-lg transition-colors"
-            >
-              <Icon name="externalLink" size={14} /> Visit roaster's site
-            </a>
           )}
         </div>
       </div>
