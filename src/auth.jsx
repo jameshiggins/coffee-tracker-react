@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { safeLocal } from './utils/safeStorage.js';
 
 const TOKEN_KEY = 'coffee_tracker_token';
 // Vite injects this at build time; localhost fallback for dev.
@@ -7,7 +8,7 @@ const API_BASE = import.meta.env?.VITE_API_BASE ?? 'http://localhost:8000';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState(() => safeLocal.get(TOKEN_KEY));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   // Transient signal from the most recent /auth/register: did the initial
@@ -32,19 +33,31 @@ export function AuthProvider({ children }) {
         const status = typeof err?.status === 'number' ? err.status : null;
         if (status === 401 || status === 403) {
           setToken(null);
-          localStorage.removeItem(TOKEN_KEY);
+          safeLocal.remove(TOKEN_KEY);
         }
       })
       .finally(() => setLoading(false));
   }, [token]);
 
   function setAuthToken(t) {
-    if (t) localStorage.setItem(TOKEN_KEY, t);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (t) safeLocal.set(TOKEN_KEY, t);
+    else safeLocal.remove(TOKEN_KEY);
     setToken(t);
   }
 
   function logout() {
+    // Revoke the token server-side so a stolen/leaked bearer token is actually
+    // dead, not just forgotten by this browser. Best-effort + optimistic: we
+    // fire-and-forget and clear locally immediately so sign-out never hangs on
+    // the network. auth:sanctum reads the token from the Authorization header.
+    const current = token;
+    if (current) {
+      fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${current}`, Accept: 'application/json' },
+        keepalive: true,
+      }).catch(() => { /* logging out locally regardless */ });
+    }
     setAuthToken(null);
   }
 
