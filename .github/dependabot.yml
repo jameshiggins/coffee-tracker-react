@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # npm dependencies. Weekly, grouped so a routine minor/patch wave lands as one
+  # reviewable PR. Dev and prod deps are split so a test-tooling bump can't be
+  # confused with a runtime-dependency bump at review time.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      prod-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      dev-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
