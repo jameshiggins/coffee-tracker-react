@@ -12,20 +12,50 @@ function friendlyHttpMessage(status) {
   return 'Something went wrong loading this page. Please try again.';
 }
 
-async function getJson(path) {
-  let res;
+// A hung TCP connection (server accepted but never responds) leaves fetch()
+// pending forever — the landing page would spin indefinitely with no error.
+// Bound every request with an AbortController timeout.
+const DEFAULT_TIMEOUT_MS = 12000;
+
+async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    res = await fetch(`${BASE}${path}`);
-  } catch (networkErr) {
-    // fetch() rejects only on a true network failure (offline, DNS, CORS).
-    console.error(`[api] network error for ${path}:`, networkErr);
-    throw new Error("We couldn't reach the server. Check your connection and try again.");
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) {
-    console.error(`[api] ${res.status} ${res.statusText} for ${BASE}${path}`);
-    throw new Error(friendlyHttpMessage(res.status));
+}
+
+// GET the JSON at `path`. These endpoints are all idempotent, so a single
+// retry on a transient failure (timeout, dropped connection, 5xx) is safe and
+// smooths over the flaky-network / cold-start blips that otherwise dump the
+// user straight to an error screen. 4xx are not retried (they won't change).
+async function getJson(path, { retries = 1 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetchWithTimeout(`${BASE}${path}`);
+    } catch (networkErr) {
+      const timedOut = networkErr?.name === 'AbortError';
+      console.error(`[api] ${timedOut ? 'timeout' : 'network error'} for ${path}:`, networkErr);
+      if (attempt < retries) continue;
+      throw new Error(
+        timedOut
+          ? 'This is taking longer than expected. Please check your connection and try again.'
+          : "We couldn't reach the server. Check your connection and try again."
+      );
+    }
+    if (res.status >= 500 && attempt < retries) {
+      console.error(`[api] ${res.status} for ${path}; retrying once`);
+      continue;
+    }
+    if (!res.ok) {
+      console.error(`[api] ${res.status} ${res.statusText} for ${BASE}${path}`);
+      throw new Error(friendlyHttpMessage(res.status));
+    }
+    return res.json();
   }
-  return res.json();
 }
 
 export const api = {

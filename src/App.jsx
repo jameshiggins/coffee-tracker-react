@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { NavLink, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
+import { NavLink, Routes, Route, Link, Navigate, useParams, useLocation } from 'react-router-dom';
 
 // Route-level code splitting (perf). The shell (header/footer/providers) is
 // eager so the chrome paints immediately; pages stream in behind Suspense.
@@ -28,11 +28,15 @@ const Terms = lazy(() => import('./pages/Terms.jsx'));
 import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
 import EmailVerificationBanner from './components/EmailVerificationBanner.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Logo from './components/Logo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import Icon from './components/Icon.jsx';
 
 export default function App() {
+  // Per-route error boundary reset key: navigating to a new path clears a
+  // caught error so one broken page doesn't wedge the whole session.
+  const routePath = useLocation().pathname;
   return (
     <AuthProvider>
       <WishlistProvider>
@@ -122,6 +126,26 @@ export default function App() {
           <EmailVerificationBanner />
 
           <main id="main">
+          {/* Per-route boundary: a render error in one page shows a recover card
+              but keeps the header/nav/footer alive and navigable. resetKey on the
+              pathname auto-clears the error when the user navigates elsewhere. */}
+          <ErrorBoundary
+            resetKey={routePath}
+            fallback={(error, reset) => (
+              <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 p-10 text-center">
+                <h2 className="text-lg font-bold text-fg">This page hit a snag</h2>
+                <p className="text-sm text-fg-muted max-w-sm">
+                  Something went wrong rendering this view. You can try again, or use the navigation above to go elsewhere.
+                </p>
+                <button
+                  onClick={reset}
+                  className="mt-1 px-4 py-2.5 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+          >
           {/* Reserve a tall min-height while a lazy route chunk streams in so the
               footer doesn't paint high then jump down (CLS). */}
           <Suspense fallback={<div className="min-h-[80vh] p-10 text-center text-fg-muted">Loading…</div>}>
@@ -149,6 +173,7 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
           </main>
 
           <footer className="app-safe-bottom bg-surface border-t border-border mt-6 px-4 sm:px-6 py-6 text-xs text-fg-muted sm:rounded-b-2xl overflow-hidden">
