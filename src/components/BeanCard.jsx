@@ -7,6 +7,7 @@ import { ratingToStars, formatStars } from '../utils/rating.js';
 import { splitTastingNotes } from '../utils/flavorColor.js';
 import { TONE_TRIOS, ROAST_TONES } from '../ui/tones.js';
 import { formatDate } from '../utils/format.js';
+import { thumbnailUrl } from '../utils/imageUrl.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
 import WishlistHeart from './WishlistHeart.jsx';
 import Icon from './Icon.jsx';
@@ -117,9 +118,10 @@ export default function BeanCard({
               className="flex-shrink-0 cursor-zoom-in"
             >
               <img
-                src={coffee.image_url}
+                src={thumbnailUrl(coffee.image_url, isExpanded ? 256 : 160)}
                 alt={`${coffee.roaster?.name ? coffee.roaster.name + ' — ' : ''}${coffee.name}`}
                 loading="lazy"
+                decoding="async"
                 className={`rounded-lg object-cover border border-border hover:brightness-95 transition ${
                   isExpanded ? 'w-32 h-32' : 'w-20 h-20'
                 }`}
