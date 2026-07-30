@@ -60,6 +60,10 @@ async function getJson(path, { retries = 1 } = {}) {
 
 export const api = {
   listRoasters: () => getJson('/roasters'),
+  // Slim landing-page payload: roaster scalars + precomputed aggregates
+  // (bean counts, ¢/g range, search terms) with NO nested coffees/variants —
+  // ~15x smaller than /roasters. The beans + map pages still use the full tree.
+  listRoasterSummaries: () => getJson('/roasters/summary'),
   getRoaster: (slug) => getJson(`/roasters/${slug}`),
   getCoffee: (id) => getJson(`/coffees/${id}`),
   getCoffeeTastings: (id) => getJson(`/coffees/${id}/tastings`),

@@ -8,7 +8,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { formatCAD } from '../utils/format.js';
 import { countryName } from '../utils/countries.js';
-import { isCoffeeInStock } from '../utils/stock.js';
 import { haversineKm, formatKm } from '../utils/distance.js';
 import { useShowOutOfStock } from '../hooks/useShowHistorical.js';
 import { useUserLocation, readStoredLocation } from '../hooks/useUserLocation.js';
@@ -24,15 +23,13 @@ const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees',
 const ROASTER_SINGLE_KEYS = ['q', 'region', 'country'];
 const NO_MULTI_KEYS = new Set();
 
+// ¢/g range for a roaster row. The /roasters/summary endpoint precomputes both
+// spans server-side (cpg_min/max = in-stock only, cpg_min_all/max_all = every
+// variant) — this just picks the one matching the stock toggle.
 function priceRange(roaster, { includeOutOfStock }) {
-  const coffees = includeOutOfStock
-    ? (roaster.coffees || [])
-    : (roaster.coffees || []).filter(isCoffeeInStock);
-  const cpgs = coffees.flatMap((c) => (c.variants || [])
-    .filter((v) => v.bag_weight_grams > 0 && (includeOutOfStock || v.in_stock))
-    .map((v) => (v.price / v.bag_weight_grams) * 100));
-  if (cpgs.length === 0) return { min: null, max: null };
-  return { min: Math.min(...cpgs), max: Math.max(...cpgs) };
+  return includeOutOfStock
+    ? { min: roaster.cpg_min_all ?? null, max: roaster.cpg_max_all ?? null }
+    : { min: roaster.cpg_min ?? null, max: roaster.cpg_max ?? null };
 }
 
 // Colour the ¢/g signal: green = great value, amber = mid, red = premium.
@@ -114,7 +111,9 @@ export default function RoastersPage() {
   }
 
   useEffect(() => {
-    api.listRoasters()
+    // The slim summary payload (~15x smaller than /roasters): this page only
+    // renders per-roaster rollups, never individual beans.
+    api.listRoasterSummaries()
       .then((d) => setRoasters(d.roasters))
       .catch((e) => setError(e.message));
   }, []);
@@ -140,12 +139,15 @@ export default function RoastersPage() {
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
+      // search_terms is the server-built lowercase blob of this roaster's bean
+      // names + origins — keeps "search by bean" working without shipping the
+      // coffee objects to this page.
       list = list.filter(
         (r) =>
           r.name.toLowerCase().includes(q) ||
           (r.region || '').toLowerCase().includes(q) ||
           (r.city || '').toLowerCase().includes(q) ||
-          r.coffees.some((c) => c.name.toLowerCase().includes(q) || (c.origin || '').toLowerCase().includes(q))
+          (r.search_terms || '').includes(q)
       );
     }
 
@@ -154,13 +156,12 @@ export default function RoastersPage() {
 
     list = list
       .map((r) => {
-        const inStockBeans = (r.coffees ?? []).filter(isCoffeeInStock);
         const distanceKm = (location && r.latitude != null && r.longitude != null)
           ? haversineKm(location, { lat: r.latitude, lng: r.longitude })
           : null;
         return {
           ...r,
-          _inStockCount: inStockBeans.length,
+          _inStockCount: r.in_stock_count ?? 0,
           _range: priceRange(r, { includeOutOfStock: showOutOfStock }),
           _distanceKm: distanceKm,
         };
@@ -178,7 +179,7 @@ export default function RoastersPage() {
         case 'country': return countryName(a.country_code).localeCompare(countryName(b.country_code)) * mult;
         case 'region': return (a.region || '').localeCompare(b.region || '') * mult;
         case 'city': return (a.city || '').localeCompare(b.city || '') * mult;
-        case 'coffees': return ((a.coffees_count ?? a.coffees.length) - (b.coffees_count ?? b.coffees.length)) * mult;
+        case 'coffees': return ((a.coffees_count ?? 0) - (b.coffees_count ?? 0)) * mult;
         case 'cpg_range': return ((a._range.min ?? Infinity) - (b._range.min ?? Infinity)) * mult;
         case 'shipping_cost': return ((a.shipping_cost ?? Infinity) - (b.shipping_cost ?? Infinity)) * mult;
         case 'free_shipping_over': return ((a.free_shipping_over ?? Infinity) - (b.free_shipping_over ?? Infinity)) * mult;
@@ -341,7 +342,7 @@ export default function RoastersPage() {
             </div>
             <ul className="space-y-3">
               {rows.map((r) => {
-                const beanCount = showOutOfStock ? (r.coffees_count ?? r.coffees.length) : r._inStockCount;
+                const beanCount = showOutOfStock ? (r.coffees_count ?? 0) : r._inStockCount;
                 const cityRegion = [r.city, r.region].filter(Boolean).join(', ');
                 const ship = shipLabel(r);
                 return (
@@ -453,7 +454,7 @@ export default function RoastersPage() {
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
                       {showOutOfStock
-                        ? `${r.coffees_count ?? r.coffees.length} ${(r.coffees_count ?? r.coffees.length) === 1 ? 'bean' : 'beans'}`
+                        ? `${r.coffees_count ?? 0} ${(r.coffees_count ?? 0) === 1 ? 'bean' : 'beans'}`
                         : `${r._inStockCount} ${r._inStockCount === 1 ? 'bean' : 'beans'}`}
                     </td>
                     <td className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
