@@ -45,6 +45,7 @@ export default function BeanCard({
   const [savedMsg, setSavedMsg] = useState(false);
   const [showAllTastingsModal, setShowAllTastingsModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const cardRef = useRef(null);
   const headerBtnRef = useRef(null);
   // Ties the name button (aria-controls) to the expanded body for AT users.
@@ -108,7 +109,7 @@ export default function BeanCard({
       {/* ---------- COLLAPSED HEADER (always visible) ---------- */}
       <div className="p-4">
         <div className="flex items-start gap-3">
-          {coffee.image_url && (
+          {coffee.image_url && !imgFailed ? (
             <button
               type="button"
               data-no-expand
@@ -125,9 +126,13 @@ export default function BeanCard({
                 className={`rounded-lg object-cover border border-border hover:brightness-95 transition ${
                   isExpanded ? 'w-32 h-32' : 'w-20 h-20'
                 }`}
-                onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                onError={() => setImgFailed(true)}
               />
             </button>
+          ) : (
+            // No storefront photo (or it failed to load): a per-roaster tinted
+            // tile keeps the card grid visually even instead of leaving a gap.
+            <BeanImagePlaceholder roaster={coffee.roaster} expanded={isExpanded} />
           )}
           <div className="flex-1 min-w-0">
             {/* Roaster chip (above name on /beans, hidden on /beans?roaster=) */}
@@ -496,6 +501,52 @@ function Chip({ value, onClick, tone = 'stone', label }) {
     >
       {value}
     </button>
+  );
+}
+
+/**
+ * Default bean image for products whose storefront has no photo (or whose
+ * photo fails to load). Distinct per roaster: the tile is tinted by the same
+ * name-hash hue the RoasterAvatar monogram uses, with the roaster's favicon
+ * (or monogram initials) centered — so a photo-less 94 Celcius bean still
+ * reads as 94 Celcius at a glance instead of an empty gap in the card row.
+ * Decorative (the bean name is right beside it) — aria-hidden.
+ */
+function BeanImagePlaceholder({ roaster, expanded }) {
+  const [favFailed, setFavFailed] = useState(false);
+  const name = roaster?.name || '';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  // Second hash byte varies saturation too, so two roasters that land on
+  // nearby hues still get visibly different tiles.
+  const sat = 35 + (Math.abs(hash >> 9) % 25);
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex-shrink-0 rounded-lg border border-border inline-flex items-center justify-center overflow-hidden ${
+        expanded ? 'w-32 h-32' : 'w-20 h-20'
+      }`}
+      style={{ background: `linear-gradient(135deg, hsl(${hue} ${sat}% 92%), hsl(${hue} ${sat}% 80%))` }}
+    >
+      {roaster?.favicon_url && !favFailed ? (
+        <img
+          src={roaster.favicon_url}
+          alt=""
+          loading="lazy"
+          onError={() => setFavFailed(true)}
+          className={`object-contain rounded ${expanded ? 'w-12 h-12' : 'w-8 h-8'}`}
+        />
+      ) : (
+        <span
+          className={`font-bold text-white leading-none ${expanded ? 'text-2xl' : 'text-base'}`}
+          style={{ textShadow: '0 1px 2px rgb(0 0 0 / 0.25)' }}
+        >
+          {roasterInitials(name)}
+        </span>
+      )}
+    </span>
   );
 }
 
