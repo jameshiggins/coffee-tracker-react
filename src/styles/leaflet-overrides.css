@@ -81,7 +81,11 @@ a.leaflet-popup-close-button:hover {
   min-width: 240px;
   font-family: Inter, system-ui, sans-serif;
 }
-.rm-popup__title {
+/* Anchor colors need the .leaflet-container prefix: Leaflet's own
+   stylesheet sets `.leaflet-container a { color: #0078A8 }` (element+class)
+   which outranks a lone class selector — the popup title and CTAs rendered
+   Leaflet-blue without it. */
+.leaflet-container .rm-popup__title {
   display: block;
   font-weight: 700;
   font-size: 15px;
@@ -89,7 +93,7 @@ a.leaflet-popup-close-button:hover {
   color: var(--color-accent);
   text-decoration: none;
 }
-.rm-popup__title:hover {
+.leaflet-container .rm-popup__title:hover {
   text-decoration: underline;
 }
 .rm-popup__meta {
@@ -121,19 +125,19 @@ a.leaflet-popup-close-button:hover {
   font-weight: 600;
   text-decoration: none;
 }
-.rm-popup-btn--primary {
+.leaflet-container .rm-popup-btn--primary {
   background: var(--color-accent);
   color: var(--color-accent-fg);
 }
-.rm-popup-btn--primary:hover {
+.leaflet-container .rm-popup-btn--primary:hover {
   background: var(--color-accent-hover);
 }
-.rm-popup-btn--secondary {
+.leaflet-container .rm-popup-btn--secondary {
   border: 1px solid var(--color-accent);
   color: var(--color-accent);
   background: transparent;
 }
-.rm-popup-btn--secondary:hover {
+.leaflet-container .rm-popup-btn--secondary:hover {
   background: var(--color-surface-muted);
 }
 .rm-popup-btn__icon {
