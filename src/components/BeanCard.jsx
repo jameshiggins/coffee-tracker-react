@@ -4,11 +4,12 @@ import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { formatBagWeight, labelContainsGrams } from '../utils/units';
 import { ratingToStars, formatStars } from '../utils/rating.js';
-import { splitTastingNotes } from '../utils/flavorColor.js';
 import { TONE_TRIOS, ROAST_TONES } from '../ui/tones.js';
 import { formatDate } from '../utils/format.js';
 import { thumbnailUrl } from '../utils/imageUrl.js';
 import TastingNoteChips from './TastingNoteChips.jsx';
+import RoasterAvatar from './RoasterAvatar.jsx';
+import { getFaviconSources, roasterTint, roasterInitials } from '../utils/roasterFavicon.js';
 import WishlistHeart from './WishlistHeart.jsx';
 import Icon from './Icon.jsx';
 import TastingForm from './TastingForm.jsx';
@@ -143,7 +144,7 @@ export default function BeanCard({
                 className="group/roaster flex items-center gap-1.5 max-w-full text-xs text-fg-muted hover:text-fg uppercase tracking-wide"
                 title={`Filter by ${coffee.roaster.name}`}
               >
-                <RoasterAvatar name={coffee.roaster.name} faviconUrl={coffee.roaster.favicon_url} />
+                <RoasterAvatar name={coffee.roaster.name} faviconUrl={coffee.roaster.favicon_url} size={24} />
                 <span className="truncate group-hover/roaster:underline">{coffee.roaster.name}</span>
               </button>
             )}
@@ -515,12 +516,8 @@ function Chip({ value, onClick, tone = 'stone', label }) {
 function BeanImagePlaceholder({ roaster, expanded }) {
   const [favFailed, setFavFailed] = useState(false);
   const name = roaster?.name || '';
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  const hue = Math.abs(hash) % 360;
-  // Second hash byte varies saturation too, so two roasters that land on
-  // nearby hues still get visibly different tiles.
-  const sat = 35 + (Math.abs(hash >> 9) % 25);
+  const { hue, sat } = roasterTint(name);
+  const { src, srcSet } = getFaviconSources(roaster?.favicon_url);
 
   return (
     <span
@@ -530,9 +527,10 @@ function BeanImagePlaceholder({ roaster, expanded }) {
       }`}
       style={{ background: `linear-gradient(135deg, hsl(${hue} ${sat}% 92%), hsl(${hue} ${sat}% 80%))` }}
     >
-      {roaster?.favicon_url && !favFailed ? (
+      {src && !favFailed ? (
         <img
-          src={roaster.favicon_url}
+          src={src}
+          srcSet={srcSet}
           alt=""
           loading="lazy"
           onError={() => setFavFailed(true)}
@@ -550,51 +548,6 @@ function BeanImagePlaceholder({ roaster, expanded }) {
   );
 }
 
-/**
- * Roaster avatar. Prefers the roaster's actual favicon/logo — the same
- * `favicon_url` the roaster lists render — so the chip shows a real brand
- * mark instead of generic initials ("ON", "CC"). Falls back to a
- * deterministic tinted monogram when there's no favicon or the image fails
- * to load (404 / blocked). Decorative — the roaster name sits right beside
- * it, so it's aria-hidden.
- */
-function RoasterAvatar({ name, faviconUrl, className = '' }) {
-  const [imgFailed, setImgFailed] = useState(false);
-
-  if (faviconUrl && !imgFailed) {
-    return (
-      <img
-        src={faviconUrl}
-        alt=""
-        aria-hidden="true"
-        loading="lazy"
-        onError={() => setImgFailed(true)}
-        className={`w-6 h-6 rounded-sm flex-shrink-0 object-contain bg-surface-muted border border-border ${className}`}
-      />
-    );
-  }
-
-  const initials = roasterInitials(name);
-  let hash = 0;
-  for (let i = 0; i < (name || '').length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  const hue = Math.abs(hash) % 360;
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-flex items-center justify-center rounded-md font-bold leading-none flex-shrink-0 w-6 h-6 text-[10px] text-white ${className}`}
-      style={{ backgroundColor: `hsl(${hue} 42% 42%)` }}
-    >
-      {initials}
-    </span>
-  );
-}
-
-function roasterInitials(name) {
-  const words = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return '?';
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
 
 function DescriptionBlock({ text }) {
   // The blurb only shows inside an already-expanded card, so there's no reason

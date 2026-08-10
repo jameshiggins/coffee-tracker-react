@@ -23,23 +23,29 @@ const SignUp = lazy(() => import('./pages/SignUp.jsx'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const Verified = lazy(() => import('./pages/Verified.jsx'));
+const AccountSettings = lazy(() => import('./pages/AccountSettings.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Terms = lazy(() => import('./pages/Terms.jsx'));
 import { AuthProvider, useAuth } from './auth.jsx';
 import { WishlistProvider } from './hooks/useWishlist.jsx';
+import { FavoriteRoastersProvider } from './hooks/useFavoriteRoasters.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import EmailVerificationBanner from './components/EmailVerificationBanner.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Logo from './components/Logo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import Icon from './components/Icon.jsx';
+import Skeleton from './ui/Skeleton.jsx';
 
 export default function App() {
   // Per-route error boundary reset key: navigating to a new path clears a
   // caught error so one broken page doesn't wedge the whole session.
   const routePath = useLocation().pathname;
   return (
+    <ThemeProvider>
     <AuthProvider>
       <WishlistProvider>
+      <FavoriteRoastersProvider>
       {/* Global a11y polish.
           - focus-visible: keyboard users get a 2px terracotta ring; mouse clicks don't.
           - skip-link: hidden until focused, jumps past the nav.
@@ -148,7 +154,19 @@ export default function App() {
           >
           {/* Reserve a tall min-height while a lazy route chunk streams in so the
               footer doesn't paint high then jump down (CLS). */}
-          <Suspense fallback={<div className="min-h-[80vh] p-10 text-center text-fg-muted">Loading…</div>}>
+          <Suspense
+            fallback={
+              <div className="min-h-[80vh] px-4 sm:px-6 py-6 space-y-4" role="status" aria-label="Loading page">
+                <Skeleton className="h-7 max-w-[16rem]" />
+                <Skeleton className="h-4 max-w-[24rem]" />
+                <div className="pt-2 space-y-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16" rounded="rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            }
+          >
           <Routes>
             {/* The roaster directory is the home AND keeps its /roasters URL so
                 existing deep links (and the map's "not on map" pills) still work. */}
@@ -168,6 +186,7 @@ export default function App() {
             <Route path="/verified" element={<Verified />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/me" element={<MyTastings />} />
+            <Route path="/me/settings" element={<AccountSettings />} />
             <Route path="/me/wishlist" element={<Wishlist />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
@@ -204,8 +223,10 @@ export default function App() {
           </footer>
         </div>
       </div>
+      </FavoriteRoastersProvider>
       </WishlistProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -215,9 +236,13 @@ function AuthCorner() {
     return (
       <div className="flex items-center gap-2 text-sm min-w-0">
         {user.avatar_url && <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-border flex-shrink-0" />}
-        <span className="text-fg truncate max-w-[7rem] sm:max-w-none hidden min-[420px]:inline">
+        <Link
+          to="/me/settings"
+          title="Account settings"
+          className="text-fg hover:text-accent hover:underline truncate max-w-[7rem] sm:max-w-none hidden min-[420px]:inline"
+        >
           {user.display_name || user.email}
-        </span>
+        </Link>
         <button
           onClick={logout}
           className="text-fg-muted hover:text-fg hover:bg-surface-muted text-xs font-medium flex-shrink-0 px-2 py-2 rounded-lg transition-colors"

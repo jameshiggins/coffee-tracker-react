@@ -56,10 +56,16 @@ export default function MyTastings() {
         {user?.avatar_url && (
           <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full border border-border-strong" />
         )}
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-fg">{user?.display_name || user?.email}</h1>
           <p className="text-sm text-fg-muted">Your reviews</p>
         </div>
+        <Link
+          to="/me/settings"
+          className="text-sm font-medium text-fg-muted hover:text-fg bg-surface-muted hover:bg-border px-3 py-2 rounded-lg transition-colors flex-shrink-0"
+        >
+          Account settings
+        </Link>
       </div>
 
       {error && (

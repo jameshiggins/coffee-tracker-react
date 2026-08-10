@@ -17,6 +17,10 @@ import { useSeo } from '../hooks/useSeo.js';
 import Skeleton from '../ui/Skeleton.jsx';
 import Badge from '../ui/Badge.jsx';
 import Icon from '../components/Icon.jsx';
+import RoasterAvatar from '../components/RoasterAvatar.jsx';
+import FavoriteRoasterButton from '../components/FavoriteRoasterButton.jsx';
+import { useAuth } from '../auth.jsx';
+import { useFavoriteRoasters } from '../hooks/useFavoriteRoasters.jsx';
 
 const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
 
@@ -55,25 +59,6 @@ function shipLabel(r) {
   return Number(r.shipping_cost) === 0 ? 'Free ship' : `${formatCAD(r.shipping_cost)} ship`;
 }
 
-// Roaster avatar — the scraped favicon, or initials on a soft accent tile.
-function RoasterAvatar({ roaster }) {
-  const initials = (roaster.name || '?').replace(/[^a-zA-Z ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
-  return (
-    <span className="relative inline-flex w-10 h-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent text-xs font-bold overflow-hidden">
-      <span aria-hidden="true">{initials}</span>
-      {roaster.favicon_url && (
-        <img
-          src={roaster.favicon_url}
-          alt=""
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-contain bg-surface"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-      )}
-    </span>
-  );
-}
-
 export default function RoastersPage() {
   useSeo({
     title: 'Roasters',
@@ -82,6 +67,10 @@ export default function RoastersPage() {
   });
   const navigate = useNavigate();
   const [showOutOfStock, setShowOutOfStock] = useShowOutOfStock();
+  const { user } = useAuth();
+  const { ids: favoriteIds } = useFavoriteRoasters();
+  // "Pinned" chip: narrow the list to favorited roasters. Signed-in only.
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const { location } = useUserLocation();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
@@ -168,6 +157,8 @@ export default function RoastersPage() {
       })
       .filter((r) => showOutOfStock || r._inStockCount > 0);
 
+    if (user && pinnedOnly) list = list.filter((r) => favoriteIds.has(r.id));
+
     const mult = dir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
       switch (sort) {
@@ -188,8 +179,18 @@ export default function RoastersPage() {
           return a.name.localeCompare(b.name) * mult;
       }
     });
+
+    // Pinned roasters float to the top, keeping the active sort order within
+    // each group (stable partition — not a sort key, so column sorting still
+    // reads naturally inside both groups).
+    if (user && favoriteIds.size) {
+      list = [
+        ...list.filter((r) => favoriteIds.has(r.id)),
+        ...list.filter((r) => !favoriteIds.has(r.id)),
+      ];
+    }
     return list;
-  }, [roasters, search, region, country, sort, dir, showOutOfStock, location]);
+  }, [roasters, search, region, country, sort, dir, showOutOfStock, location, user, favoriteIds, pinnedOnly]);
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
@@ -289,6 +290,21 @@ export default function RoastersPage() {
             />
             Include sold out
           </label>
+          {user && (
+            <button
+              type="button"
+              aria-pressed={pinnedOnly}
+              onClick={() => setPinnedOnly((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium border transition-colors ${
+                pinnedOnly
+                  ? 'bg-accent-soft border-accent text-accent'
+                  : 'bg-surface border-border text-fg-muted hover:text-fg hover:bg-surface-muted'
+              }`}
+            >
+              <Icon name="bookmark" size={15} className={pinnedOnly ? 'fill-current' : ''} />
+              Pinned
+            </button>
+          )}
           {hasFilters && (
             <button
               onClick={clearAll}
@@ -352,7 +368,7 @@ export default function RoastersPage() {
                       className="block bg-surface rounded-2xl border border-border p-4 hover:border-border-strong active:bg-surface-muted transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <RoasterAvatar roaster={r} />
+                        <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
                         <div className="min-w-0 flex-1">
                           <div className="font-semibold text-fg truncate">{r.name}</div>
                           {r.is_online_only ? (
@@ -369,6 +385,7 @@ export default function RoastersPage() {
                             {formatKm(r._distanceKm)}
                           </span>
                         )}
+                        <FavoriteRoasterButton roaster={r} className="flex-shrink-0 -mr-1" />
                       </div>
                       <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2 text-sm">
                         <span className="inline-flex items-center gap-1.5 text-fg-muted min-w-0">
@@ -430,7 +447,8 @@ export default function RoastersPage() {
                       className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <RoasterAvatar roaster={r} />
+                        <FavoriteRoasterButton roaster={r} className="-ml-1.5" />
+                        <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
                         <Link to={`/beans?roaster=${r.slug}`}
                               onClick={(e) => e.stopPropagation()}
                               className="font-semibold text-fg hover:text-accent hover:underline">

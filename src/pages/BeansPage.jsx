@@ -12,6 +12,8 @@ import Icon from '../components/Icon.jsx';
 import { SkeletonBeanCard } from '../ui/Skeleton.jsx';
 import Snackbar from '../ui/Snackbar.jsx';
 import { LABELS, MULTI_KEYS, BOOLEAN_KEYS, parseList } from '../utils/beanFilters.js';
+import { originCountry } from '../utils/beans.js';
+import { isCoffeeInStock } from '../utils/stock.js';
 import {
   filterAndSortBeans,
   buildFilterOptions,
@@ -84,6 +86,26 @@ export default function BeansPage() {
     if (beanId) setExpandedId(Number(beanId));
   }, []); // intentional: only on first mount
 
+  // Deep-linking to a bean the default view hides (sold out or discontinued —
+  // e.g. from the wishlist or a tasting permalink) would render nothing.
+  // Auto-check "Include sold out & discontinued" so the card can appear and
+  // the toggle state explains why. Session-only: unlike a manual toggle this
+  // is NOT persisted, so the user's site-wide preference is untouched.
+  const [historicalOverride, setHistoricalOverride] = useState(false);
+  const effectiveShowHistorical = showHistorical || historicalOverride;
+  useEffect(() => {
+    if (showHistorical || !beans.length) return;
+    const beanId = params.get('bean');
+    if (!beanId) return;
+    const bean = beans.find((b) => String(b.id) === String(beanId));
+    if (bean && (bean.is_removed || !isCoffeeInStock(bean))) {
+      setHistoricalOverride(true);
+    }
+    // params deliberately omitted: ?bean= only arrives via initial navigation,
+    // and filter mutations that strip it shouldn't re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beans, showHistorical]);
+
   // mobile#4: reveal the floating "Filters" button only once the inline filter
   // bar has scrolled out of reach, so it doesn't compete with the bar up top.
   // Fixed positioning (in the markup below) is deliberate — the app shell's
@@ -114,10 +136,10 @@ export default function BeansPage() {
       filters,
       sort,
       location,
-      showHistorical,
+      showHistorical: effectiveShowHistorical,
       similarSeedId: params.get('similar_to'),
     }),
-    [beans, filters, sort, location, showHistorical, params]
+    [beans, filters, sort, location, effectiveShowHistorical, params]
   );
 
   const inStockTotal = useMemo(() => inStockUniverseOf(beans, false).length, [beans]);
@@ -174,8 +196,8 @@ export default function BeansPage() {
     originOptions, noteOptions, processOptions, roastOptions,
     varietalOptions, elevationOptions, cpgOptions, roasterOptions,
   } = useMemo(
-    () => buildFilterOptions(beans, filters, showHistorical),
-    [beans, filters, showHistorical]
+    () => buildFilterOptions(beans, filters, effectiveShowHistorical),
+    [beans, filters, effectiveShowHistorical]
   );
 
   // Show the filter action bar (a Snackbar with an Undo). A fresh sequence id
@@ -231,7 +253,12 @@ export default function BeansPage() {
 
     if (MULTI_KEYS.has(targetKey)) {
       const current = filters[targetKey];
-      const needle = targetKey === 'note' ? String(value).toLowerCase() : normalize(value);
+      // Origin chips carry the FULL origin string ("Colombia, Huila") but the
+      // country filter matches the first segment only — derive it the same
+      // way flattenBeans does, then normalize (the filter's stored casing).
+      const needle = targetKey === 'note' ? String(value).toLowerCase()
+        : targetKey === 'country' ? normalize(originCountry(value))
+        : normalize(value);
       const hasIt = current.includes(needle);
       const next = hasIt ? current.filter((v) => v !== needle) : [...current, needle];
       applyFilter(targetKey, next);
@@ -424,8 +451,13 @@ export default function BeansPage() {
                title="Include sold-out beans and ones the roaster has dropped from their catalog">
           <input
             type="checkbox"
-            checked={showHistorical}
-            onChange={(e) => setShowHistorical(e.target.checked)}
+            checked={effectiveShowHistorical}
+            onChange={(e) => {
+              // A manual toggle replaces (and clears) any deep-link override,
+              // and persists like always.
+              setHistoricalOverride(false);
+              setShowHistorical(e.target.checked);
+            }}
             className="accent-amber-700 dark:accent-amber-500 w-4 h-4"
           />
           Include sold out & discontinued

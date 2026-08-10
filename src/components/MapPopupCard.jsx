@@ -1,59 +1,38 @@
 import { Link } from 'react-router-dom';
 import { formatCAD } from '../utils/format.js';
+import Icon from './Icon.jsx';
 
 /**
- * Roaster popup contents shown above a map marker. Uses inline styles
- * (not Tailwind classes) because Leaflet's .leaflet-popup-content
- * wrapper has its own margin/font-family resets that fight Tailwind
- * specificity — inline guarantees the design lands as drawn.
+ * Roaster popup contents shown above a map marker.
+ *
+ * Rendered via renderToStaticMarkup (see ClusterLayer), so there is NO React
+ * state/context at display time — theming must be pure CSS. The classes
+ * below are styled in leaflet-overrides.css with the app's semantic tokens
+ * (`--color-*`), which pierce into the popup because the static HTML lives
+ * in the real DOM under `html.dark`. That's also why colors are classes, not
+ * inline styles: an open popup restyles instantly when the theme flips.
  */
 export default function MapPopupCard({ roaster, inStockCount }) {
   const cityRegion = [roaster.city, roaster.region].filter(Boolean).join(', ');
   const beansUrl = `/beans?roaster=${roaster.slug}`;
   return (
-    <div style={{ minWidth: 240, fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <Link
-        to={beansUrl}
-        style={{
-          display: 'block',
-          fontWeight: 700,
-          fontSize: 15,
-          color: '#6f4326',
-          textDecoration: 'none',
-          lineHeight: 1.2,
-        }}
-      >
+    <div className="rm-popup">
+      <Link to={beansUrl} className="rm-popup__title">
         {roaster.name}
       </Link>
-      {cityRegion && (
-        <div style={{ fontSize: 12, color: '#7a5a3a', marginTop: 3 }}>{cityRegion}</div>
-      )}
+      {cityRegion && <div className="rm-popup__meta">{cityRegion}</div>}
 
-      <div style={{ fontSize: 12, color: '#3a2614', marginTop: 8 }}>
+      <div className="rm-popup__stock">
         <strong>{inStockCount}</strong> {inStockCount === 1 ? 'bean' : 'beans'} in stock
       </div>
       {roaster.free_shipping_over != null && (
-        <div style={{ fontSize: 11, color: '#7a5a3a', marginTop: 2 }}>
+        <div className="rm-popup__ship">
           Free shipping over {formatCAD(roaster.free_shipping_over, { cents: false })}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-        <Link
-          to={beansUrl}
-          className="rm-popup-btn"
-          style={{
-            flex: 1,
-            textAlign: 'center',
-            padding: '7px 10px',
-            background: '#6f4326',
-            color: '#fef6e7',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            textDecoration: 'none',
-          }}
-        >
+      <div className="rm-popup__actions">
+        <Link to={beansUrl} className="rm-popup-btn rm-popup-btn--primary">
           View {inStockCount > 0 ? inStockCount + ' ' : ''}beans
         </Link>
         {roaster.website_url && (
@@ -61,21 +40,9 @@ export default function MapPopupCard({ roaster, inStockCount }) {
             href={roaster.website_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="rm-popup-btn"
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              padding: '7px 10px',
-              border: '1px solid #6f4326',
-              color: '#6f4326',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              textDecoration: 'none',
-              background: 'transparent',
-            }}
+            className="rm-popup-btn rm-popup-btn--secondary"
           >
-            Visit site ↗
+            Visit site <Icon name="externalLink" size={12} className="rm-popup-btn__icon" />
           </a>
         )}
       </div>

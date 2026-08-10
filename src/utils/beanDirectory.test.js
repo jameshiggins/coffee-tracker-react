@@ -285,8 +285,8 @@ describe('buildFilterOptions', () => {
     ];
     const { originOptions } = buildFilterOptions(beans);
     expect(originOptions).toEqual([
-      { value: 'Ethiopia', label: 'Ethiopia', count: 3 },
-      { value: 'Colombia', label: 'Colombia', count: 1 },
+      { value: 'ethiopia', label: 'Ethiopia', count: 3 },
+      { value: 'colombia', label: 'Colombia', count: 1 },
     ]);
   });
 
@@ -340,7 +340,7 @@ describe('buildFilterOptions', () => {
       mkBean({ id: 2, country: 'Kenya', variants: [mkVariant({ in_stock: false })] }),
     ];
     const { originOptions } = buildFilterOptions(beans, mkFilters(), false);
-    expect(originOptions.map((o) => o.value)).toEqual(['Ethiopia']);
+    expect(originOptions.map((o) => o.value)).toEqual(['ethiopia']);
   });
 });
 
@@ -356,8 +356,8 @@ describe('buildFilterOptions — cascading', () => {
       mkBean({ id: 3, roaster: { slug: 'b', name: 'B' }, country: 'Ethiopia' }),
     ];
     const { originOptions } = buildFilterOptions(beans, mkFilters({ roaster: 'a' }), false);
-    expect(originOptions.map((o) => o.value)).toEqual(['Colombia', 'Kenya']);
-    expect(originOptions.find((o) => o.value === 'Ethiopia')).toBeUndefined();
+    expect(originOptions.map((o) => o.value)).toEqual(['colombia', 'kenya']);
+    expect(originOptions.find((o) => o.value === 'ethiopia')).toBeUndefined();
   });
 
   it('counts reflect the filtered subset, not the whole catalog', () => {
@@ -367,7 +367,7 @@ describe('buildFilterOptions — cascading', () => {
       mkBean({ id: 3, roaster: { slug: 'b', name: 'B' }, country: 'Colombia' }),
     ];
     const { originOptions } = buildFilterOptions(beans, mkFilters({ roaster: 'a' }), false);
-    expect(originOptions).toEqual([{ value: 'Colombia', label: 'Colombia', count: 2 }]);
+    expect(originOptions).toEqual([{ value: 'colombia', label: 'Colombia', count: 2 }]);
   });
 
   it('a dimension does not constrain its own options (so you can OR-add siblings)', () => {
@@ -376,7 +376,7 @@ describe('buildFilterOptions — cascading', () => {
       mkBean({ id: 2, country: 'Colombia' }),
     ];
     const { originOptions } = buildFilterOptions(beans, mkFilters({ country: ['Ethiopia'] }), false);
-    expect(originOptions.map((o) => o.value).sort()).toEqual(['Colombia', 'Ethiopia']);
+    expect(originOptions.map((o) => o.value).sort()).toEqual(['colombia', 'ethiopia']);
   });
 
   it('cross-dimension: selecting a country narrows the process options', () => {
@@ -476,5 +476,58 @@ describe('string helpers', () => {
   it('titleCase caps each word incl. hyphenated halves', () => {
     expect(titleCase('milk chocolate')).toBe('Milk Chocolate');
     expect(titleCase('medium-dark')).toBe('Medium-Dark');
+  });
+});
+
+/* ----------------- country filter case-insensitivity ----------------- */
+// The country filter must follow the same normalize() contract as
+// process/roast/varietal: stored filter values are lowercase, matching is
+// case-insensitive, labels are prettified on the way out.
+
+import { originCountry } from './beans.js';
+
+describe('country filter case-insensitivity', () => {
+  it('matches beans regardless of data casing', () => {
+    const beans = [
+      mkBean({ id: 1, origin: 'Colombia', country: 'Colombia' }),
+      mkBean({ id: 2, origin: 'colombia', country: 'colombia' }),
+      mkBean({ id: 3, origin: 'COLOMBIA, Huila', country: 'COLOMBIA' }),
+      mkBean({ id: 4, origin: 'Ethiopia', country: 'Ethiopia' }),
+    ];
+    expect(ids(run(beans, { filters: { country: ['colombia'] } }))).toEqual([1, 2, 3]);
+  });
+
+  it('a chip needle derived from a multi-segment origin matches its own bean', () => {
+    const bean = mkBean({ id: 1, origin: 'Colombia, Huila', country: 'Colombia' });
+    const needle = normalize(originCountry(bean.origin));
+    expect(needle).toBe('colombia');
+    expect(ids(run([bean], { filters: { country: [needle] } }))).toEqual([1]);
+  });
+
+  it('buildFilterOptions dedupes case variants into one lowercase option with a pretty label', () => {
+    const beans = [
+      mkBean({ id: 1, country: 'Colombia' }),
+      mkBean({ id: 2, country: 'colombia' }),
+      mkBean({ id: 3, country: 'Ethiopia' }),
+    ];
+    const { originOptions } = buildFilterOptions(beans, mkFilters(), false);
+    const colombia = originOptions.find((o) => o.value === 'colombia');
+    expect(colombia).toBeDefined();
+    expect(colombia.count).toBe(2);
+    expect(colombia.label).toBe('Colombia');
+    // no raw-cased duplicate survives
+    expect(originOptions.filter((o) => normalize(o.value) === 'colombia')).toHaveLength(1);
+  });
+
+  it('still maps ISO codes through countryName for the label', () => {
+    const beans = [mkBean({ id: 1, country: 'CA' })];
+    const { originOptions } = buildFilterOptions(beans, mkFilters(), false);
+    expect(originOptions[0]).toMatchObject({ value: 'ca', label: 'Canada' });
+  });
+
+  it('labelForValue prettifies lowercase country values', () => {
+    expect(labelForValue('country', 'colombia', [])).toBe('Colombia');
+    expect(labelForValue('country', 'costa rica', [])).toBe('Costa Rica');
+    expect(labelForValue('country', 'ca', [])).toBe('Canada');
   });
 });

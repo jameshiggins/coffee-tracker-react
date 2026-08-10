@@ -32,6 +32,9 @@ const PATHS = {
   arrowUp: <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>,
   arrowDown: <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>,
   arrowLeft: <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
+  // Pin/save (favorite-roaster toggle). Filled via CSS `fill-current` on the
+  // svg when active — the outline doubles as both states.
+  bookmark: <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
 };
 
 export default function Icon({ name, size = 20, className = '', title }) {

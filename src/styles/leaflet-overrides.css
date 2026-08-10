@@ -51,3 +51,185 @@
   margin: 12px 16px;
   max-width: 88vw;
 }
+
+/*
+ * ---- Theme-aware map chrome ----
+ *
+ * Popups, markers, and cluster bubbles are rendered as static HTML (popup
+ * bodies via renderToStaticMarkup; marker/cluster divIcons via Leaflet), so
+ * they can't re-render on a theme flip. All their colors therefore live
+ * HERE, on the app's semantic tokens — the `.dark` class on <html> restyles
+ * everything already on screen, open popups included.
+ */
+
+/* Popup wrapper + tip follow the app surface. */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+.leaflet-popup-close-button {
+  color: var(--color-fg-muted);
+}
+a.leaflet-popup-close-button:hover {
+  color: var(--color-fg);
+}
+
+/* MapPopupCard body. --color-fg-muted meets AA on the surface in both
+   themes (the old hardcoded #7a5a3a on white was borderline). */
+.rm-popup {
+  min-width: 240px;
+  font-family: Inter, system-ui, sans-serif;
+}
+.rm-popup__title {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.rm-popup__title:hover {
+  text-decoration: underline;
+}
+.rm-popup__meta {
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  margin-top: 3px;
+}
+.rm-popup__stock {
+  font-size: 12px;
+  color: var(--color-fg);
+  margin-top: 8px;
+}
+.rm-popup__ship {
+  font-size: 11px;
+  color: var(--color-fg-muted);
+  margin-top: 2px;
+}
+.rm-popup__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.rm-popup-btn {
+  flex: 1;
+  text-align: center;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.rm-popup-btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+.rm-popup-btn--primary:hover {
+  background: var(--color-accent-hover);
+}
+.rm-popup-btn--secondary {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  background: transparent;
+}
+.rm-popup-btn--secondary:hover {
+  background: var(--color-surface-muted);
+}
+.rm-popup-btn__icon {
+  display: inline;
+  vertical-align: -1px;
+}
+
+/* Bean marker (divIcon). A brown bean works on the light basemap; on the
+   dark basemap the stroke flips to a light tone so the silhouette stays
+   visible against near-black tiles. */
+.rm-bean {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  transition: transform 120ms ease-out;
+}
+.rm-bean__body {
+  fill: #6f4326;
+  stroke: #3e2412;
+}
+.rm-bean__crease {
+  stroke: #3e2412;
+}
+.rm-bean__sheen {
+  stroke: #a87650;
+}
+.dark .rm-bean__body {
+  fill: #8a5a35;
+  stroke: #e7d3b8;
+}
+.dark .rm-bean__crease {
+  stroke: #e7d3b8;
+}
+.dark .rm-bean {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* Selected-pin ring (popup open — ClusterLayer swaps in the active icon). */
+.rm-bean__ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid #fef6e7;
+  box-shadow: 0 0 0 2px #6f4326, 0 4px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.dark .rm-bean__ring {
+  border-color: #15100d;
+  box-shadow: 0 0 0 2px #e7d3b8, 0 4px 8px rgba(0, 0, 0, 0.7);
+}
+
+/* Cluster bubble. Size/font/halo come inline from createClusterIcon
+   (data-driven); colors live here so mounted bubbles follow theme flips. */
+.rm-cluster-bubble {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #6f4326;
+  color: #fef6e7;
+  border: 2px solid #fef6e7;
+  border-radius: 50%;
+  font-weight: 700;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  box-shadow: 0 0 0 var(--rm-cluster-halo, 4px) rgba(111, 67, 38, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 120ms ease-out;
+}
+.dark .rm-cluster-bubble {
+  background: #8a5a35;
+  color: #fef6e7;
+  border-color: #15100d;
+  box-shadow: 0 0 0 var(--rm-cluster-halo, 4px) rgba(231, 211, 184, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* Leaflet zoom controls + attribution follow the app surface in dark mode. */
+.dark .leaflet-bar a {
+  background: var(--color-surface);
+  color: var(--color-fg);
+  border-color: var(--color-border);
+}
+.dark .leaflet-bar a:hover {
+  background: var(--color-surface-muted);
+}
+.dark .leaflet-control-attribution {
+  background: rgba(21, 16, 13, 0.8);
+  color: var(--color-fg-muted);
+}
+.dark .leaflet-control-attribution a {
+  color: var(--color-fg);
+}
+/* Leaflet paints the pane bg while tiles stream in — match the dark tiles
+   so panning doesn't flash white. */
+.dark .leaflet-container {
+  background: #0e0d0c;
+}

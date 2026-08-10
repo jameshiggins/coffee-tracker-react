@@ -1,12 +1,13 @@
-import { useTheme } from '../hooks/useTheme.js';
+import { useThemeContext } from '../context/ThemeContext.jsx';
 import Icon from './Icon.jsx';
 
 /**
  * Header light/dark toggle. Styled with semantic tokens so it reads correctly
- * on the themed (light/dark) surface header.
+ * on the themed (light/dark) surface header. Theme state lives in
+ * ThemeContext (shared with the map's tile-layer switcher).
  */
 export default function ThemeToggle({ className = '' }) {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useThemeContext();
   return (
     <button
       type="button"

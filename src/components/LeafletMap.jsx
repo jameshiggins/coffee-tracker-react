@@ -4,7 +4,13 @@ import 'leaflet/dist/leaflet.css';
 import '../styles/leaflet-overrides.css'; // mobile#6: must load AFTER leaflet.css
 import ClusterLayer from './ClusterLayer.jsx';
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+// Theme-matched CARTO basemaps. Everything else on the map (popups, markers,
+// clusters) themes itself via CSS tokens in leaflet-overrides.css; the raster
+// tiles are the one piece that needs an explicit URL swap.
+const TILE_URLS = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
 const TILE_ATTR =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
@@ -25,6 +31,20 @@ function MapBoundsController({ targetBounds }) {
 }
 
 /**
+ * a11y: when the visitor activated the map facade from the KEYBOARD, move
+ * focus into the map container once it mounts — otherwise they're left
+ * where the (now unmounted) facade button was, with no way to reach the
+ * arrow-key pan / +- zoom Leaflet provides.
+ */
+function FocusOnReady({ enabled }) {
+  const map = useMap();
+  useEffect(() => {
+    if (enabled) map.getContainer().focus();
+  }, [enabled, map]);
+  return null;
+}
+
+/**
  * The interactive Leaflet map, code-split into its own chunk.
  *
  * Perf: Leaflet + markercluster + react-leaflet is ~99 KB gzip — the single
@@ -33,7 +53,7 @@ function MapBoundsController({ targetBounds }) {
  * first interaction, so the landing page paints instantly and this vendor
  * weight stays off the critical path entirely.
  */
-export default function LeafletMap({ markers, targetBounds }) {
+export default function LeafletMap({ markers, targetBounds, isDark = false, focusOnMount = false }) {
   return (
     <MapContainer
       center={[56, -106]}
@@ -41,8 +61,16 @@ export default function LeafletMap({ markers, targetBounds }) {
       scrollWheelZoom
       style={{ height: '100%', width: '100%' }}
     >
-      <TileLayer url={TILE_URL} attribution={TILE_ATTR} />
+      {/* key-remount on theme change: react-leaflet does NOT propagate a
+          mutated `url` prop to a live tile layer, so swapping themes in
+          place silently no-ops. A fresh layer per theme is cheap and safe. */}
+      <TileLayer
+        key={isDark ? 'dark' : 'light'}
+        url={isDark ? TILE_URLS.dark : TILE_URLS.light}
+        attribution={TILE_ATTR}
+      />
       <MapBoundsController targetBounds={targetBounds} />
+      <FocusOnReady enabled={focusOnMount} />
       <ClusterLayer markers={markers} />
     </MapContainer>
   );

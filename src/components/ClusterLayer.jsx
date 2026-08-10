@@ -67,6 +67,11 @@ export default function ClusterLayer({ markers }) {
         alt: r.name,
       });
 
+      // Selected-pin affordance: swap in the ringed `active` icon while this
+      // marker's popup is open so you can always see WHICH pin you opened.
+      marker.on('popupopen', () => marker.setIcon(beanIcon({ rotation, active: true })));
+      marker.on('popupclose', () => marker.setIcon(beanIcon({ rotation })));
+
       // Pre-render the popup HTML once per marker. MemoryRouter provides
       // the router context the <Link> elements need to render without
       // erroring; the resulting <a href> works for navigation (full

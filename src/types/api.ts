@@ -185,12 +185,16 @@ export interface PublicTasting {
   user: PublicTastingUser;
 }
 
-/** `GET /me` — the signed-in user. */
+/** `GET /me` — the signed-in user (User::toAuthPayload on the backend). */
 export interface AuthUser {
   id: number;
+  name: string;
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  email_verified: boolean;
+  /** Account was created via Google sign-in (random password they never saw). */
+  google_linked: boolean;
 }
 
 /** A wishlist row (`GET /wishlist`). */
@@ -198,4 +202,11 @@ export interface WishlistEntry {
   coffee_id: number;
   coffee: Coffee & { roaster: Pick<Roaster, 'id' | 'name' | 'slug'> };
   is_removed: boolean;
+}
+
+/** A pinned/favorite roaster row (`GET /me/favorite-roasters`). */
+export interface FavoriteRoasterEntry {
+  id: number;
+  created_at: string;
+  roaster: Pick<Roaster, 'id' | 'name' | 'slug' | 'favicon_url' | 'city' | 'region'> | null;
 }

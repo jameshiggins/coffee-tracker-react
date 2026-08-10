@@ -73,7 +73,10 @@ function applyStructuredFilters(beans, filters, { showHistorical, except = NO_EX
     list = list.filter((b) => b.roaster?.slug === filters.roaster);
   }
   if (!except.has('country') && filters.country.length) {
-    list = list.filter((b) => filters.country.includes(b.country));
+    // Normalize BOTH sides: option values are emitted lowercase, but old
+    // bookmarked URLs / saved views may still carry raw-cased values.
+    const wanted = filters.country.map(normalize);
+    list = list.filter((b) => wanted.includes(normalize(b.country)));
   }
   if (!except.has('process') && filters.process.length) {
     list = list.filter((b) => filters.process.includes(normalize(b.process)));
@@ -193,15 +196,30 @@ function appendKept(list, keep, counts, make) {
   return [...list, ...extra];
 }
 
+// Country values are stored normalized (lowercase) like every other
+// structured filter; prettify for display — ISO codes go through
+// countryName ("ca" → "Canada"), free-text origins get title-cased.
+function countryLabel(v) {
+  if (/^[a-z]{2}$/.test(v)) {
+    const mapped = countryName(v.toUpperCase());
+    if (mapped !== v.toUpperCase()) return mapped;
+  }
+  return titleCase(v);
+}
+
 function buildOriginOptions(subset, keep = []) {
   const counts = {};
   for (const b of subset) {
-    if (b.country) counts[b.country] = (counts[b.country] || 0) + 1;
+    const c = normalize(b.country);
+    if (c) counts[c] = (counts[c] || 0) + 1;
   }
+  // Selected values may be raw-cased (old URLs); normalize + dedupe so the
+  // kept-option append can't create a case-variant duplicate.
+  keep = [...new Set(keep.map(normalize))];
   const list = Object.entries(counts)
-    .map(([v, c]) => ({ value: v, label: countryName(v) || v, count: c }))
+    .map(([v, c]) => ({ value: v, label: countryLabel(v), count: c }))
     .sort((a, b) => b.count - a.count);
-  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: countryName(v) || v, count: c }));
+  return appendKept(list, keep, counts, (v, c) => ({ value: v, label: countryLabel(v), count: c }));
 }
 
 function buildNoteOptions(subset, keep = []) {
@@ -375,7 +393,7 @@ export function cheapestPrice(b) {
 }
 
 export function labelForValue(key, value, roasters) {
-  if (key === 'country') return countryName(value) || value;
+  if (key === 'country') return countryLabel(normalize(value));
   if (key === 'roaster') return roasters?.find((r) => r.slug === value)?.name || value;
   if (key === 'blend') return value === 'single-origin' ? 'Single Origin' : 'Blend';
   if (key === 'elevation') {

@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 
 import { api } from '../api.js';
 import { useSeo } from '../hooks/useSeo.js';
+import { useThemeContext } from '../context/ThemeContext.jsx';
 import { useUserLocation } from '../hooks/useUserLocation.js';
 import {
   PROVINCE_BOUNDS,
@@ -25,15 +26,23 @@ export default function MapPage() {
       'Explore an interactive map of Canadian specialty-coffee roasters. Find micro-roasters near you and discover who ships beans to your door.',
   });
   const { location } = useUserLocation();
+  const { isDark } = useThemeContext();
   const [roasters, setRoasters] = useState(null);
   const [error, setError] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null);
 
-  useEffect(() => {
+  // Extracted so the error card's "Try again" re-fetches in place instead of
+  // the old full window.location.reload() (which threw away all app state).
+  const load = useCallback(() => {
+    setError(null);
     api.listRoasters()
       .then((d) => setRoasters(d.roasters))
       .catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // From IP geo: which province is the user in?
   const userProvince = useMemo(
@@ -120,7 +129,7 @@ export default function MapPage() {
         <h3 className="font-bold mb-2">We couldn't load the map</h3>
         <p className="text-sm text-fg-muted">{error}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={load}
           className="mt-4 px-4 py-2 rounded-lg bg-accent text-accent-fg text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           Try again
@@ -287,6 +296,7 @@ export default function MapPage() {
           markers={visibleRoasters}
           targetBounds={targetBounds}
           regionLabel={selectedRegionLabel}
+          isDark={isDark}
         />
 
         {/* ux#7: the sidebar already lists the "+N not on map" pill, but on a
@@ -320,13 +330,22 @@ export default function MapPage() {
  * instant they move, scroll, tap, key, or click. Identical behaviour for
  * everyone — we just don't pay for the map until it's actually wanted.
  */
-function MapPanel({ markers, targetBounds, regionLabel }) {
+function MapPanel({ markers, targetBounds, regionLabel, isDark }) {
   const [active, setActive] = useState(false);
+  // a11y: remember whether activation came from the keyboard — if so, focus
+  // moves into the map container on mount (FocusOnReady in LeafletMap) so
+  // keyboard users land on Leaflet's arrow-pan/zoom controls instead of
+  // being stranded where the unmounted facade button was.
+  const [viaKeyboard, setViaKeyboard] = useState(false);
 
   useEffect(() => {
     if (active) return;
     const activate = () => setActive(true);
     // A broad net so the first thing any real visitor does loads the map.
+    // keydown activates too, but does NOT count as "keyboard activation" for
+    // focus purposes — stealing focus while someone tabs the sidebar would
+    // be worse than not moving it. Only explicitly pressing the facade
+    // button with the keyboard moves focus (see MapPlaceholder onClick).
     const events = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove', 'scroll'];
     const opts = { once: true, passive: true };
     events.forEach((e) => window.addEventListener(e, activate, opts));
@@ -334,14 +353,25 @@ function MapPanel({ markers, targetBounds, regionLabel }) {
   }, [active]);
 
   const placeholder = (
-    <MapPlaceholder regionLabel={regionLabel} onActivate={() => setActive(true)} />
+    <MapPlaceholder
+      regionLabel={regionLabel}
+      onActivate={(fromKeyboard) => {
+        setViaKeyboard(fromKeyboard);
+        setActive(true);
+      }}
+    />
   );
 
   if (!active) return placeholder;
 
   return (
     <Suspense fallback={placeholder}>
-      <LeafletMap markers={markers} targetBounds={targetBounds} />
+      <LeafletMap
+        markers={markers}
+        targetBounds={targetBounds}
+        isDark={isDark}
+        focusOnMount={viaKeyboard}
+      />
       {/* ux#1: first-visit orientation, shown once the live map is up. */}
       <MapOnboardingCallout />
     </Suspense>
@@ -360,7 +390,8 @@ function MapPlaceholder({ regionLabel, onActivate }) {
   return (
     <button
       type="button"
-      onClick={onActivate}
+      // detail === 0 → the "click" came from Enter/Space, not a pointer.
+      onClick={(e) => onActivate(e.detail === 0)}
       className="absolute inset-0 flex h-full w-full cursor-pointer flex-col items-center
                  justify-center gap-3 px-6 text-center transition-colors
                  bg-surface-muted hover:bg-surface
@@ -412,12 +443,11 @@ function MobileProvincePicker({
           <span className="mx-2 text-fg-subtle">·</span>
           <span className="font-semibold">{selectedLabel}</span>
         </span>
-        <span
-          className={`text-fg-muted text-xs transition-transform ${open ? 'rotate-180' : ''}`}
-          aria-hidden="true"
-        >
-          ▾
-        </span>
+        <Icon
+          name="chevronDown"
+          size={16}
+          className={`text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open && (
         <div ref={panelRef} className="px-4 pb-4">
@@ -524,9 +554,9 @@ function MapOnboardingCallout() {
       <button
         onClick={dismiss}
         aria-label="Dismiss map tip"
-        className="text-fg-muted hover:text-fg text-lg leading-none shrink-0 -mt-0.5 px-1"
+        className="text-fg-muted hover:text-fg shrink-0 -mt-0.5 p-1 rounded-md hover:bg-surface-muted transition-colors"
       >
-        ×
+        <Icon name="x" size={16} />
       </button>
     </div>
   );
