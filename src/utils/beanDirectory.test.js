@@ -15,7 +15,7 @@ import {
 /* ----------------- fixtures ----------------- */
 
 function mkVariant(o = {}) {
-  return { in_stock: true, bag_weight_grams: 340, price: 20, price_per_gram: null, ...o };
+  return { in_stock: true, bag_weight_grams: 340, price: 20, price_per_gram: null, cents_per_gram: null, ...o };
 }
 
 // Mirrors the shape flattenBeans() produces. `country` is the origin's
@@ -162,8 +162,8 @@ describe('filterAndSortBeans — filters', () => {
 
   it('cpg filters by reference-variant ¢/g tier', () => {
     const beans = [
-      mkBean({ id: 1, variants: [mkVariant({ price_per_gram: 5 })] }),  // lt6
-      mkBean({ id: 2, variants: [mkVariant({ price_per_gram: 12 })] }), // gte10
+      mkBean({ id: 1, variants: [mkVariant({ cents_per_gram: 5 })] }),  // lt6
+      mkBean({ id: 2, variants: [mkVariant({ cents_per_gram: 12 })] }), // gte10
     ];
     expect(ids(run(beans, { filters: { cpg: ['lt6'] } }))).toEqual([1]);
   });
@@ -218,9 +218,9 @@ describe('filterAndSortBeans — filters', () => {
 describe('filterAndSortBeans — sorting', () => {
   it('cpg-asc orders cheapest ¢/g first; cpg-desc reverses', () => {
     const beans = [
-      mkBean({ id: 1, name: 'a', variants: [mkVariant({ price_per_gram: 8 })] }),
-      mkBean({ id: 2, name: 'b', variants: [mkVariant({ price_per_gram: 5 })] }),
-      mkBean({ id: 3, name: 'c', variants: [mkVariant({ price_per_gram: 12 })] }),
+      mkBean({ id: 1, name: 'a', variants: [mkVariant({ cents_per_gram: 8 })] }),
+      mkBean({ id: 2, name: 'b', variants: [mkVariant({ cents_per_gram: 5 })] }),
+      mkBean({ id: 3, name: 'c', variants: [mkVariant({ cents_per_gram: 12 })] }),
     ];
     expect(ids(run(beans, { sort: 'cpg-asc' }))).toEqual([2, 1, 3]);
     expect(ids(run(beans, { sort: 'cpg-desc' }))).toEqual([3, 1, 2]);
@@ -319,7 +319,7 @@ describe('buildFilterOptions', () => {
   });
 
   it('cpgOptions always lists all four tiers', () => {
-    const beans = [mkBean({ id: 1, variants: [mkVariant({ price_per_gram: 5 })] })];
+    const beans = [mkBean({ id: 1, variants: [mkVariant({ cents_per_gram: 5 })] })];
     const { cpgOptions } = buildFilterOptions(beans);
     expect(cpgOptions).toHaveLength(4);
     expect(cpgOptions.find((o) => o.value === 'lt6').count).toBe(1);
@@ -425,8 +425,8 @@ describe('reference-variant price helpers', () => {
   it('referenceVariantFor prefers in-stock variants', () => {
     const bean = mkBean({
       variants: [
-        mkVariant({ in_stock: false, bag_weight_grams: 454, price_per_gram: 1 }),
-        mkVariant({ in_stock: true, bag_weight_grams: 340, price_per_gram: 9 }),
+        mkVariant({ in_stock: false, bag_weight_grams: 454, cents_per_gram: 1 }),
+        mkVariant({ in_stock: true, bag_weight_grams: 340, cents_per_gram: 9 }),
       ],
     });
     expect(referenceVariantFor(bean).bag_weight_grams).toBe(340);
@@ -443,9 +443,34 @@ describe('reference-variant price helpers', () => {
     expect(referenceVariantFor(bean).bag_weight_grams).toBe(350);
   });
 
-  it('cheapestCpg falls back to price/grams when price_per_gram is null', () => {
-    const bean = mkBean({ variants: [mkVariant({ price: 20, bag_weight_grams: 400, price_per_gram: null })] });
-    expect(cheapestCpg(bean)).toBeCloseTo(0.05);
+  it('cheapestCpg falls back to price/grams (in CENTS) when both API fields are null', () => {
+    const bean = mkBean({ variants: [mkVariant({ price: 20, bag_weight_grams: 400, price_per_gram: null, cents_per_gram: null })] });
+    expect(cheapestCpg(bean)).toBeCloseTo(5);
+  });
+
+  // Regression: the API sends price_per_gram in DOLLARS (0.0529) alongside
+  // cents_per_gram (5.3). cheapestCpg used to return the dollar figure, so
+  // cpgTier bucketed every real bean into "<6¢/g" and the other three price
+  // tiers were unreachable.
+  it('cheapestCpg prefers the API cents_per_gram field', () => {
+    const bean = mkBean({ variants: [mkVariant({ price_per_gram: 0.078, cents_per_gram: 7.8 })] });
+    expect(cheapestCpg(bean)).toBeCloseTo(7.8);
+  });
+
+  it('cheapestCpg converts dollars-per-gram when cents_per_gram is absent', () => {
+    const bean = mkBean({ variants: [mkVariant({ price_per_gram: 0.078 })] });
+    expect(cheapestCpg(bean)).toBeCloseTo(7.8);
+  });
+
+  it('API-shaped beans land in their real ¢/g tiers', () => {
+    const beans = [
+      mkBean({ id: 1, variants: [mkVariant({ price_per_gram: 0.053, cents_per_gram: 5.3 })] }),
+      mkBean({ id: 2, variants: [mkVariant({ price_per_gram: 0.078, cents_per_gram: 7.8 })] }),
+      mkBean({ id: 3, variants: [mkVariant({ price_per_gram: 0.149, cents_per_gram: 14.9 })] }),
+    ];
+    expect(ids(run(beans, { filters: { cpg: ['lt6'] } }))).toEqual([1]);
+    expect(ids(run(beans, { filters: { cpg: ['6-8'] } }))).toEqual([2]);
+    expect(ids(run(beans, { filters: { cpg: ['gte10'] } }))).toEqual([3]);
   });
 
   it('cheapestPrice returns the reference variant price', () => {

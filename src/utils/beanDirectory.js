@@ -384,7 +384,13 @@ export function referenceVariantFor(b) {
 export function cheapestCpg(b) {
   const v = referenceVariantFor(b);
   if (!v) return null;
-  return v.price_per_gram ?? (v.price && v.bag_weight_grams ? v.price / v.bag_weight_grams : null);
+  // CENTS per gram — the unit cpgTier buckets by and the cards display.
+  // The API sends both cents_per_gram (5.3) and price_per_gram in DOLLARS
+  // (0.0529); returning the dollar figure here used to funnel every bean
+  // into the "<6¢/g" tier and make the other price filters dead.
+  if (v.cents_per_gram != null) return v.cents_per_gram;
+  if (v.price_per_gram != null) return v.price_per_gram * 100;
+  return v.price && v.bag_weight_grams ? (v.price / v.bag_weight_grams) * 100 : null;
 }
 
 export function cheapestPrice(b) {
