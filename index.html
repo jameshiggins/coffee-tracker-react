@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -13,11 +13,15 @@
     <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
     <link rel="dns-prefetch" href="https://b.basemaps.cartocdn.com" />
     <link rel="dns-prefetch" href="https://c.basemaps.cartocdn.com" />
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="theme-color" content="#ffffff" />
-    <meta name="description" content="Roastmap — the map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
+    <meta
+      name="description"
+      content="Roastmap — the map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock."
+    />
     <title>Roastmap — Canadian specialty coffee</title>
 
     <!-- Canonical + social cards. These are the no-JS fallbacks that crawlers
@@ -29,11 +33,17 @@
     <meta property="og:site_name" content="Roastmap" />
     <meta property="og:locale" content="en_CA" />
     <meta property="og:title" content="Roastmap — Canadian specialty coffee" />
-    <meta property="og:description" content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
+    <meta
+      property="og:description"
+      content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock."
+    />
     <meta property="og:url" content="https://roastmap.ca/" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Roastmap — Canadian specialty coffee" />
-    <meta name="twitter:description" content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock." />
+    <meta
+      name="twitter:description"
+      content="The map of Canadian specialty coffee. Find micro-roasters near you, browse current beans, compare prices and stock."
+    />
 
     <!-- Structured data: a WebSite node with a SearchAction so search engines
          can offer a sitelinks search box that deep-links into the bean search. -->
@@ -63,8 +73,7 @@
       (function () {
         try {
           var s = localStorage.getItem('roastmap_theme');
-          var dark = s ? s === 'dark'
-            : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = s ? s === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
           document.documentElement.style.backgroundColor = dark ? '#100c0a' : '#ece5da';
           if (dark) {
             document.documentElement.classList.add('dark');
