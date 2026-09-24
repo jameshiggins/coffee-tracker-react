@@ -39,6 +39,8 @@ CI runs both on every push to `main`.
 
 Targeted at Vercel — auto-detects Vite, uses the `npm run build` command, serves `dist/`. Set `VITE_API_BASE` to the production Laravel URL in Vercel project settings.
 
+Also set `VITE_CARTO_API_KEY` (free key from <https://carto.com/basemaps/apikey/>) so the map uses CARTO's theme-matched light/dark basemaps. Without it the map falls back to OpenStreetMap's keyless tiles (dark mode inverts them via CSS) — see `src/components/mapTiles.js`.
+
 ## License
 
 MIT

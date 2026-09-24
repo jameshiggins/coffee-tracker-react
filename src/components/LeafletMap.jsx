@@ -3,16 +3,7 @@ import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import '../styles/leaflet-overrides.css'; // mobile#6: must load AFTER leaflet.css
 import ClusterLayer from './ClusterLayer.jsx';
-
-// Theme-matched CARTO basemaps. Everything else on the map (popups, markers,
-// clusters) themes itself via CSS tokens in leaflet-overrides.css; the raster
-// tiles are the one piece that needs an explicit URL swap.
-const TILE_URLS = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-};
-const TILE_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+import { resolveTileLayer } from './mapTiles.js';
 
 /**
  * Imperatively re-fits the map when the target bounds change. Must live inside
@@ -53,7 +44,13 @@ function FocusOnReady({ enabled }) {
  * first interaction, so the landing page paints instantly and this vendor
  * weight stays off the critical path entirely.
  */
-export default function LeafletMap({ markers, targetBounds, isDark = false, focusOnMount = false }) {
+export default function LeafletMap({
+  markers,
+  targetBounds,
+  isDark = false,
+  focusOnMount = false,
+}) {
+  const tiles = resolveTileLayer({ isDark });
   return (
     <MapContainer
       center={[56, -106]}
@@ -63,11 +60,16 @@ export default function LeafletMap({ markers, targetBounds, isDark = false, focu
     >
       {/* key-remount on theme change: react-leaflet does NOT propagate a
           mutated `url` prop to a live tile layer, so swapping themes in
-          place silently no-ops. A fresh layer per theme is cheap and safe. */}
+          place silently no-ops. A fresh layer per theme is cheap and safe.
+          Provider + URL come from mapTiles.js (CARTO with an API key, else
+          keyless OSM) — see that file for why. */}
       <TileLayer
-        key={isDark ? 'dark' : 'light'}
-        url={isDark ? TILE_URLS.dark : TILE_URLS.light}
-        attribution={TILE_ATTR}
+        key={`${tiles.provider}-${isDark ? 'dark' : 'light'}`}
+        url={tiles.url}
+        attribution={tiles.attribution}
+        subdomains={tiles.subdomains}
+        maxZoom={tiles.maxZoom}
+        className={tiles.className}
       />
       <MapBoundsController targetBounds={targetBounds} />
       <FocusOnReady enabled={focusOnMount} />
