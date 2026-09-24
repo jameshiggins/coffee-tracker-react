@@ -22,7 +22,17 @@ import FavoriteRoasterButton from '../components/FavoriteRoasterButton.jsx';
 import { useAuth } from '../auth.jsx';
 import { useFavoriteRoasters } from '../hooks/useFavoriteRoasters.jsx';
 
-const SORT_FIELDS = ['distance', 'name', 'country', 'region', 'city', 'coffees', 'cpg_range', 'shipping_cost', 'free_shipping_over'];
+const SORT_FIELDS = [
+  'distance',
+  'name',
+  'country',
+  'region',
+  'city',
+  'coffees',
+  'cpg_range',
+  'shipping_cost',
+  'free_shipping_over',
+];
 
 const ROASTER_SINGLE_KEYS = ['q', 'region', 'country'];
 const NO_MULTI_KEYS = new Set();
@@ -102,7 +112,8 @@ export default function RoastersPage() {
   useEffect(() => {
     // The slim summary payload (~15x smaller than /roasters): this page only
     // renders per-roaster rollups, never individual beans.
-    api.listRoasterSummaries()
+    api
+      .listRoasterSummaries()
       .then((d) => setRoasters(d.roasters))
       .catch((e) => setError(e.message));
   }, []);
@@ -119,7 +130,7 @@ export default function RoastersPage() {
 
   const totalShipping = useMemo(
     () => (roasters ? roasters.filter((r) => r.has_shipping).length : 0),
-    [roasters]
+    [roasters],
   );
 
   const rows = useMemo(() => {
@@ -136,7 +147,7 @@ export default function RoastersPage() {
           r.name.toLowerCase().includes(q) ||
           (r.region || '').toLowerCase().includes(q) ||
           (r.city || '').toLowerCase().includes(q) ||
-          (r.search_terms || '').includes(q)
+          (r.search_terms || '').includes(q),
       );
     }
 
@@ -145,9 +156,10 @@ export default function RoastersPage() {
 
     list = list
       .map((r) => {
-        const distanceKm = (location && r.latitude != null && r.longitude != null)
-          ? haversineKm(location, { lat: r.latitude, lng: r.longitude })
-          : null;
+        const distanceKm =
+          location && r.latitude != null && r.longitude != null
+            ? haversineKm(location, { lat: r.latitude, lng: r.longitude })
+            : null;
         return {
           ...r,
           _inStockCount: r.in_stock_count ?? 0,
@@ -167,13 +179,20 @@ export default function RoastersPage() {
           const bx = b._distanceKm ?? Infinity;
           return (ax - bx) * mult;
         }
-        case 'country': return countryName(a.country_code).localeCompare(countryName(b.country_code)) * mult;
-        case 'region': return (a.region || '').localeCompare(b.region || '') * mult;
-        case 'city': return (a.city || '').localeCompare(b.city || '') * mult;
-        case 'coffees': return ((a.coffees_count ?? 0) - (b.coffees_count ?? 0)) * mult;
-        case 'cpg_range': return ((a._range.min ?? Infinity) - (b._range.min ?? Infinity)) * mult;
-        case 'shipping_cost': return ((a.shipping_cost ?? Infinity) - (b.shipping_cost ?? Infinity)) * mult;
-        case 'free_shipping_over': return ((a.free_shipping_over ?? Infinity) - (b.free_shipping_over ?? Infinity)) * mult;
+        case 'country':
+          return countryName(a.country_code).localeCompare(countryName(b.country_code)) * mult;
+        case 'region':
+          return (a.region || '').localeCompare(b.region || '') * mult;
+        case 'city':
+          return (a.city || '').localeCompare(b.city || '') * mult;
+        case 'coffees':
+          return ((a.coffees_count ?? 0) - (b.coffees_count ?? 0)) * mult;
+        case 'cpg_range':
+          return ((a._range.min ?? Infinity) - (b._range.min ?? Infinity)) * mult;
+        case 'shipping_cost':
+          return ((a.shipping_cost ?? Infinity) - (b.shipping_cost ?? Infinity)) * mult;
+        case 'free_shipping_over':
+          return ((a.free_shipping_over ?? Infinity) - (b.free_shipping_over ?? Infinity)) * mult;
         case 'name':
         default:
           return a.name.localeCompare(b.name) * mult;
@@ -190,12 +209,27 @@ export default function RoastersPage() {
       ];
     }
     return list;
-  }, [roasters, search, region, country, sort, dir, showOutOfStock, location, user, favoriteIds, pinnedOnly]);
+  }, [
+    roasters,
+    search,
+    region,
+    country,
+    sort,
+    dir,
+    showOutOfStock,
+    location,
+    user,
+    favoriteIds,
+    pinnedOnly,
+  ]);
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
     if (sort === field) setDir(dir === 'asc' ? 'desc' : 'asc');
-    else { setSort(field); setDir('asc'); }
+    else {
+      setSort(field);
+      setDir('asc');
+    }
   }
   const hasFilters = search || region || country;
 
@@ -211,7 +245,8 @@ export default function RoastersPage() {
     ['free_shipping_over', 'Free over'],
   ];
 
-  const selectClass = 'px-3 py-2.5 min-h-[44px] rounded-lg text-sm bg-surface border border-border text-fg focus:outline-none focus:border-accent';
+  const selectClass =
+    'px-3 py-2.5 min-h-[44px] rounded-lg text-sm bg-surface border border-border text-fg focus:outline-none focus:border-accent';
 
   if (error) {
     return (
@@ -231,17 +266,25 @@ export default function RoastersPage() {
   return (
     <>
       <h1 className="sr-only">Canadian specialty-coffee roasters</h1>
-      <p className="sr-only" aria-live="polite" role="status">{rows.length} {rows.length === 1 ? 'roaster' : 'roasters'} match your search</p>
+      <p className="sr-only" aria-live="polite" role="status">
+        {rows.length} {rows.length === 1 ? 'roaster' : 'roasters'} match your search
+      </p>
 
       {/* Search hero — the list's primary entry point (search is the CTA). */}
       <section className="px-4 sm:px-6 pt-5 pb-4 sm:pt-7 sm:pb-5 border-b border-border">
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">Find a Canadian roaster</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-fg">
+          Find a Canadian roaster
+        </h2>
         <p className="mt-1 text-sm text-fg-muted">
           {roasters ? `${totalShipping} roasters` : 'Loading…'} · live beans, prices &amp; shipping
         </p>
 
         <div className="mt-3.5 relative">
-          <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
+          <Icon
+            name="search"
+            size={18}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none"
+          />
           <input
             type="text"
             value={search}
@@ -269,16 +312,34 @@ export default function RoastersPage() {
               button. Lives here by the search, not in the header. */}
           <LocationChip onLocationSelected={onLocationSelected} />
           {allCountries.length > 1 && (
-            <select value={country} onChange={(e) => setFilter('country', e.target.value)} aria-label="Filter by country" className={selectClass}>
+            <select
+              value={country}
+              onChange={(e) => setFilter('country', e.target.value)}
+              aria-label="Filter by country"
+              className={selectClass}
+            >
               <option value="">All countries</option>
-              {allCountries.map((c) => <option key={c} value={c}>{countryName(c)}</option>)}
+              {allCountries.map((c) => (
+                <option key={c} value={c}>
+                  {countryName(c)}
+                </option>
+              ))}
             </select>
           )}
           {/* Province select — always rendered (options just populate once roaster
               data loads) so it doesn't appear late and shift the row. */}
-          <select value={region} onChange={(e) => setFilter('region', e.target.value)} aria-label="Filter by province" className={selectClass}>
+          <select
+            value={region}
+            onChange={(e) => setFilter('region', e.target.value)}
+            aria-label="Filter by province"
+            className={selectClass}
+          >
             <option value="">All provinces</option>
-            {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
+            {allRegions.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
           </select>
           <label className="inline-flex items-center gap-2 text-sm text-fg-muted cursor-pointer select-none min-h-[44px] px-1">
             <input
@@ -301,7 +362,7 @@ export default function RoastersPage() {
                   : 'bg-surface border-border text-fg-muted hover:text-fg hover:bg-surface-muted'
               }`}
             >
-              <Icon name="bookmark" size={15} className={pinnedOnly ? 'fill-current' : ''} />
+              <Icon name="heart" size={15} className={pinnedOnly ? 'fill-current' : ''} />
               Pinned
             </button>
           )}
@@ -319,7 +380,10 @@ export default function RoastersPage() {
       {!roasters ? (
         <div className="px-3 sm:px-5 py-4 space-y-3" role="status" aria-label="Loading roasters">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 bg-surface rounded-2xl border border-border p-4">
+            <div
+              key={i}
+              className="flex items-center gap-3 bg-surface rounded-2xl border border-border p-4"
+            >
               <Skeleton className="w-10 h-10" rounded="rounded-lg" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 max-w-[10rem]" />
@@ -338,14 +402,20 @@ export default function RoastersPage() {
           {/* Mobile (<md): "Sort by" control + stacked cards. */}
           <div className="md:hidden">
             <div className="flex items-center gap-2 mb-3">
-              <label htmlFor="roaster-sort" className="text-sm text-fg-muted flex-shrink-0">Sort by</label>
+              <label htmlFor="roaster-sort" className="text-sm text-fg-muted flex-shrink-0">
+                Sort by
+              </label>
               <select
                 id="roaster-sort"
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
                 className="flex-1 min-w-0 px-3 py-2.5 min-h-[44px] rounded-lg text-sm bg-surface border border-border text-fg focus:outline-none focus:border-accent"
               >
-                {sortOptions.map(([field, label]) => <option key={field} value={field}>{label}</option>)}
+                {sortOptions.map(([field, label]) => (
+                  <option key={field} value={field}>
+                    {label}
+                  </option>
+                ))}
               </select>
               <button
                 type="button"
@@ -372,7 +442,9 @@ export default function RoastersPage() {
                         <div className="min-w-0 flex-1">
                           <div className="font-semibold text-fg truncate">{r.name}</div>
                           {r.is_online_only ? (
-                            <Badge tone="info" className="mt-0.5">Online only</Badge>
+                            <Badge tone="info" className="mt-0.5">
+                              Online only
+                            </Badge>
                           ) : (
                             <div className="flex items-center gap-1 text-sm text-fg-muted truncate">
                               <Icon name="pin" size={13} className="flex-shrink-0 text-fg-subtle" />
@@ -390,9 +462,13 @@ export default function RoastersPage() {
                       <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2 text-sm">
                         <span className="inline-flex items-center gap-1.5 text-fg-muted min-w-0">
                           <Icon name="coffee" size={15} className="flex-shrink-0 text-fg-subtle" />
-                          <span className="truncate">{beanCount} {beanCount === 1 ? 'bean' : 'beans'}</span>
+                          <span className="truncate">
+                            {beanCount} {beanCount === 1 ? 'bean' : 'beans'}
+                          </span>
                         </span>
-                        <span className={`font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>{priceLabel(r._range)}</span>
+                        <span className={`font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
+                          {priceLabel(r._range)}
+                        </span>
                         {ship && (
                           <span className="inline-flex items-center gap-1.5 text-fg-muted whitespace-nowrap">
                             <Icon name="truck" size={15} className="flex-shrink-0 text-fg-subtle" />
@@ -433,7 +509,9 @@ export default function RoastersPage() {
                       >
                         <span className="inline-flex items-center gap-1">
                           {label}
-                          {active && <Icon name={dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={13} />}
+                          {active && (
+                            <Icon name={dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={13} />
+                          )}
                         </span>
                       </th>
                     );
@@ -442,47 +520,73 @@ export default function RoastersPage() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id}
-                      onClick={() => navigate(`/beans?roaster=${r.slug}`)}
-                      className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors">
+                  <tr
+                    key={r.id}
+                    onClick={() => navigate(`/beans?roaster=${r.slug}`)}
+                    className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <FavoriteRoasterButton roaster={r} className="-ml-1.5" />
                         <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
-                        <Link to={`/beans?roaster=${r.slug}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-semibold text-fg hover:text-accent hover:underline">
+                        <Link
+                          to={`/beans?roaster=${r.slug}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-semibold text-fg hover:text-accent hover:underline"
+                        >
                           {r.name}
                         </Link>
                       </div>
                     </td>
                     {location && (
                       <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
-                        {r._distanceKm != null ? formatKm(r._distanceKm) : <span className="text-fg-subtle">—</span>}
+                        {r._distanceKm != null ? (
+                          formatKm(r._distanceKm)
+                        ) : (
+                          <span className="text-fg-subtle">—</span>
+                        )}
                       </td>
                     )}
                     {allCountries.length > 1 && (
                       <td className="px-4 py-3 text-fg">{countryName(r.country_code)}</td>
                     )}
-                    <td className="px-4 py-3 text-fg">{r.region || <span className="text-fg-subtle">—</span>}</td>
                     <td className="px-4 py-3 text-fg">
-                      {r.is_online_only
-                        ? <Badge tone="info">Online only</Badge>
-                        : (r.city || <span className="text-fg-subtle">—</span>)}
+                      {r.region || <span className="text-fg-subtle">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-fg">
+                      {r.is_online_only ? (
+                        <Badge tone="info">Online only</Badge>
+                      ) : (
+                        r.city || <span className="text-fg-subtle">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
                       {showOutOfStock
                         ? `${r.coffees_count ?? 0} ${(r.coffees_count ?? 0) === 1 ? 'bean' : 'beans'}`
                         : `${r._inStockCount} ${r._inStockCount === 1 ? 'bean' : 'beans'}`}
                     </td>
-                    <td className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
+                    <td
+                      className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}
+                    >
                       {priceLabel(r._range)}
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.shipping_cost != null ? (Number(r.shipping_cost) === 0 ? 'Free' : formatCAD(r.shipping_cost)) : <span className="text-fg-subtle">—</span>}
+                      {r.shipping_cost != null ? (
+                        Number(r.shipping_cost) === 0 ? (
+                          'Free'
+                        ) : (
+                          formatCAD(r.shipping_cost)
+                        )
+                      ) : (
+                        <span className="text-fg-subtle">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.free_shipping_over != null ? formatCAD(r.free_shipping_over) : <span className="text-fg-subtle">—</span>}
+                      {r.free_shipping_over != null ? (
+                        formatCAD(r.free_shipping_over)
+                      ) : (
+                        <span className="text-fg-subtle">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -34,7 +34,7 @@ function fieldErrors(err) {
   const errors = err?.body?.errors;
   if (!errors) return {};
   return Object.fromEntries(
-    Object.entries(errors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)])
+    Object.entries(errors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : String(v)]),
   );
 }
 
@@ -115,11 +115,20 @@ function ProfileSection({ user, token, setUser, snack }) {
     <SectionCard title="Profile">
       <form onSubmit={submit} className="space-y-4">
         <Field label="Name" error={errors.name}>
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+          <input
+            className={inputClass}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
         </Field>
         <Field
           label="Username"
-          hint={displayName ? `Your public profile: /u/${displayName}` : 'Letters, numbers, hyphens, and underscores.'}
+          hint={
+            displayName
+              ? `Your public profile: /u/${displayName}`
+              : 'Letters, numbers, hyphens, and underscores.'
+          }
           error={errors.display_name}
         >
           <input
@@ -133,7 +142,11 @@ function ProfileSection({ user, token, setUser, snack }) {
         </Field>
         {user.avatar_url && (
           <p className="text-xs text-fg-subtle flex items-center gap-2">
-            <img src={user.avatar_url} alt="" className="w-6 h-6 rounded-full border border-border" />
+            <img
+              src={user.avatar_url}
+              alt=""
+              className="w-6 h-6 rounded-full border border-border"
+            />
             Profile photo is managed by your Google account.
           </p>
         )}
@@ -157,8 +170,12 @@ function PinnedRoastersSection() {
     >
       {items.length === 0 ? (
         <p className="text-sm text-fg-muted">
-          Nothing pinned yet. Hit the <Icon name="bookmark" size={14} className="inline -mt-0.5" /> on any
-          roaster in the <Link to="/roasters" className="text-accent hover:underline">directory</Link>.
+          Nothing pinned yet. Hit the <Icon name="heart" size={14} className="inline -mt-0.5" /> on
+          any roaster in the{' '}
+          <Link to="/roasters" className="text-accent hover:underline">
+            directory
+          </Link>
+          .
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -169,10 +186,15 @@ function PinnedRoastersSection() {
               <li key={it.id} className="py-2.5 flex items-center gap-3">
                 <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={32} />
                 <div className="flex-1 min-w-0">
-                  <Link to={`/beans?roaster=${r.slug}`} className="font-medium text-fg hover:text-accent hover:underline truncate block">
+                  <Link
+                    to={`/beans?roaster=${r.slug}`}
+                    className="font-medium text-fg hover:text-accent hover:underline truncate block"
+                  >
                     {r.name}
                   </Link>
-                  <span className="text-xs text-fg-subtle">{[r.city, r.region].filter(Boolean).join(', ')}</span>
+                  <span className="text-xs text-fg-subtle">
+                    {[r.city, r.region].filter(Boolean).join(', ')}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -232,10 +254,23 @@ function EmailSection({ user, token, setUser, snack }) {
       )}
       <form onSubmit={submit} className="space-y-4">
         <Field label="New email" error={errors.email}>
-          <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            className={inputClass}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </Field>
         <Field label="Current password" error={errors.current_password}>
-          <input type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+          <input
+            type="password"
+            className={inputClass}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </Field>
         <GooglePasswordHint user={user} />
         <button type="submit" disabled={saving} className={primaryBtn}>
@@ -280,19 +315,39 @@ function PasswordSection({ user, token, snack }) {
   }
 
   return (
-    <SectionCard
-      title="Password"
-      subtitle="Changing your password signs out every other device."
-    >
+    <SectionCard title="Password" subtitle="Changing your password signs out every other device.">
       <form onSubmit={submit} className="space-y-4">
         <Field label="Current password" error={errors.current_password}>
-          <input type="password" className={inputClass} value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" required />
+          <input
+            type="password"
+            className={inputClass}
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </Field>
         <Field label="New password" hint="At least 8 characters." error={errors.password}>
-          <input type="password" className={inputClass} value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <input
+            type="password"
+            className={inputClass}
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
         </Field>
         <Field label="Confirm new password">
-          <input type="password" className={inputClass} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <input
+            type="password"
+            className={inputClass}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
         </Field>
         <GooglePasswordHint user={user} />
         <button type="submit" disabled={saving} className={primaryBtn}>
@@ -309,7 +364,9 @@ function GooglePasswordHint({ user }) {
   return (
     <p className="text-xs text-fg-muted bg-surface-muted border border-border rounded-lg p-2.5">
       Signed in with Google and never set a password? Use{' '}
-      <Link to="/forgot-password" className="text-accent hover:underline">forgot password</Link>{' '}
+      <Link to="/forgot-password" className="text-accent hover:underline">
+        forgot password
+      </Link>{' '}
       to create one first.
     </p>
   );
@@ -321,8 +378,16 @@ function ShortcutsSection({ user }) {
   return (
     <SectionCard title="Your stuff">
       <ul className="space-y-2 text-sm">
-        <li><Link to="/me" className="text-accent hover:underline">Your tastings</Link></li>
-        <li><Link to="/me/wishlist" className="text-accent hover:underline">Your wishlist</Link></li>
+        <li>
+          <Link to="/me" className="text-accent hover:underline">
+            Your tastings
+          </Link>
+        </li>
+        <li>
+          <Link to="/me/wishlist" className="text-accent hover:underline">
+            Your wishlist
+          </Link>
+        </li>
         {user.display_name && (
           <li>
             <Link to={`/u/${user.display_name}`} className="text-accent hover:underline">
@@ -364,11 +429,20 @@ function DangerZone({ user, token, setAuthToken }) {
     <Card padding="lg" className="border-danger/40">
       <h2 className="text-base font-semibold text-danger">Danger zone</h2>
       <p className="mt-0.5 text-sm text-fg-muted">
-        Deleting your account permanently removes your tastings, wishlist, and pinned
-        roasters. This cannot be undone.
+        Deleting your account permanently removes your tastings, wishlist, and pinned roasters. This
+        cannot be undone.
       </p>
       <div className="mt-4">
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setPassword(''); setErrors({}); } }}>
+        <Dialog
+          open={open}
+          onOpenChange={(v) => {
+            setOpen(v);
+            if (!v) {
+              setPassword('');
+              setErrors({});
+            }
+          }}
+        >
           <Dialog.Trigger asChild>
             <button
               type="button"
@@ -395,7 +469,10 @@ function DangerZone({ user, token, setAuthToken }) {
               <GooglePasswordHint user={user} />
               <div className="flex justify-end gap-2">
                 <Dialog.Close asChild>
-                  <button type="button" className="px-4 py-2.5 rounded-lg border border-border text-fg text-sm font-medium hover:bg-surface-muted transition-colors">
+                  <button
+                    type="button"
+                    className="px-4 py-2.5 rounded-lg border border-border text-fg text-sm font-medium hover:bg-surface-muted transition-colors"
+                  >
                     Cancel
                   </button>
                 </Dialog.Close>
