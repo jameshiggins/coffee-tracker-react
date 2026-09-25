@@ -112,7 +112,7 @@ describe('RoastersPage pinning', () => {
     renderPage();
     expect(await tableNames()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot']);
     expect(desktopPinned()).not.toBeInTheDocument();
-    expect(screen.queryByText(/all roasters/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/everything else/i)).not.toBeInTheDocument();
   });
 
   it('groups a single favourite above the list, always open, without duplicating it', async () => {
@@ -126,7 +126,7 @@ describe('RoastersPage pinning', () => {
     expect(pinnedToggle()).toBeNull(); // ≤3 pins: no toggle
     expect(pinnedNames()).toEqual(['Charlie']);
     expect(mainNames()).not.toContain('Charlie');
-    expect(screen.getAllByText('All roasters').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Everything else (5)').length).toBeGreaterThan(0);
   });
 
   it('stays open with exactly three favourites', async () => {
@@ -138,7 +138,7 @@ describe('RoastersPage pinning', () => {
     expect(mainNames()).toEqual(['Delta', 'Echo', 'Foxtrot']);
   });
 
-  it('collapses by default past three favourites, previews names, and remembers the toggle', async () => {
+  it('collapses by default past three favourites and remembers the toggle', async () => {
     favoriteIds = new Set([1, 2, 3, 4]);
     renderPage();
     await tableNames();
@@ -146,14 +146,14 @@ describe('RoastersPage pinning', () => {
     const toggle = pinnedToggle();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle).toHaveTextContent('Pinned roasters (4)');
-    expect(toggle).toHaveTextContent('Alpha, Bravo, Charlie +1');
+    // No name preview: it overlapped the label on phones (see PinnedGroupHeader).
+    expect(toggle).not.toHaveTextContent('Alpha');
     expect(pinnedNames()).toEqual([]); // rows not rendered while collapsed
     expect(mainNames()).toEqual(['Echo', 'Foxtrot']);
 
     fireEvent.click(toggle);
     expect(pinnedToggle()).toHaveAttribute('aria-expanded', 'true');
     expect(pinnedNames()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta']);
-    expect(pinnedToggle()).not.toHaveTextContent('+1'); // preview only while collapsed
     expect(localStorage.getItem(PINNED_SECTION_OPEN_KEY)).toBe('1');
 
     fireEvent.click(pinnedToggle());
@@ -178,8 +178,8 @@ describe('RoastersPage pinning', () => {
       0,
     );
     expect(pinnedNames()).toEqual(['Echo']);
-    // Nothing unpinned matches the filter, so no "All roasters" divider.
-    expect(screen.queryByText('All roasters')).not.toBeInTheDocument();
+    // Nothing unpinned matches the filter, so no "Everything else" divider.
+    expect(screen.queryByText(/everything else/i)).not.toBeInTheDocument();
   });
 
   it('mirrors the group on the mobile list', async () => {

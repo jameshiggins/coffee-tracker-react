@@ -15,7 +15,16 @@ import prettier from 'eslint-config-prettier';
 // genuine bugs (hook misuse, missing keys, undefined refs) are errors.
 export default tseslint.config(
   {
-    ignores: ['dist', 'coverage', 'public', 'node_modules', '_showcase.html'],
+    ignores: [
+      'dist',
+      'dist-e2e',
+      'playwright-report',
+      'test-results',
+      'coverage',
+      'public',
+      'node_modules',
+      '_showcase.html',
+    ],
   },
 
   js.configs.recommended,
@@ -83,7 +92,10 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx}'],
     rules: {
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
   },
 
