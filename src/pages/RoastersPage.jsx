@@ -80,17 +80,17 @@ function shipLabel(r) {
  * Heading for the pinned-roasters group. A real <button> with aria-expanded
  * when the group is collapsible (more than PINNED_COLLAPSE_THRESHOLD pins);
  * otherwise a static heading — a short list is always open, so a toggle
- * would be noise. Collapsed, it previews the first three names so the bar
- * reads as content rather than an empty control.
+ * would be noise. Deliberately just the label and count: an earlier version
+ * previewed the first few names beside the label and, on a phone, the two
+ * overlapped (the label was nowrap inside a shrinkable flex item). The label
+ * is flex-shrink-0 so nothing can ever be laid out on top of it again.
  */
-function PinnedGroupHeader({ id, controls, count, names, collapsible, expanded, onToggle }) {
-  const label = `Pinned roasters (${count})`;
-  const preview = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+function PinnedGroupHeader({ id, controls, count, collapsible, expanded, onToggle }) {
   const heading = (
-    <span className="inline-flex items-center gap-2 min-w-0">
+    <span className="inline-flex items-center gap-2 flex-shrink-0">
       <Icon name="heart" size={15} className="fill-current text-accent flex-shrink-0" />
       <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted whitespace-nowrap">
-        {label}
+        Pinned roasters ({count})
       </span>
     </span>
   );
@@ -112,10 +112,7 @@ function PinnedGroupHeader({ id, controls, count, names, collapsible, expanded, 
         onClick={onToggle}
         className="w-full flex items-center justify-between gap-3 min-h-[2.75rem] -mx-1 px-1 rounded-lg text-left hover:bg-surface-muted transition-colors"
       >
-        <span className="flex items-center gap-3 min-w-0">
-          {heading}
-          {!expanded && <span className="text-sm text-fg-muted truncate">{preview}</span>}
-        </span>
+        {heading}
         <Icon
           name="chevronDown"
           size={16}
@@ -291,7 +288,6 @@ export default function RoastersPage() {
   const pinnedExpanded = !pinnedCollapsible || pinnedOpenPref === true;
   const pinnedHeaderProps = {
     count: pinnedRows.length,
-    names: pinnedRows.map((r) => r.name),
     collapsible: pinnedCollapsible,
     expanded: pinnedExpanded,
     onToggle: () => setPinnedOpenPref(!pinnedExpanded),
@@ -649,7 +645,7 @@ export default function RoastersPage() {
               <>
                 {pinnedRows.length > 0 && (
                   <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted mb-3">
-                    All roasters
+                    Everything else ({mainRows.length})
                   </h2>
                 )}
                 <ul className="space-y-3" data-testid="roasters-mobile">
@@ -716,7 +712,7 @@ export default function RoastersPage() {
                       scope="colgroup"
                       className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-fg-muted"
                     >
-                      All roasters
+                      Everything else ({mainRows.length})
                     </th>
                   </tr>
                 )}
