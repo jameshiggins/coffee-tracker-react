@@ -21,6 +21,7 @@ import RoasterAvatar from '../components/RoasterAvatar.jsx';
 import FavoriteRoasterButton from '../components/FavoriteRoasterButton.jsx';
 import { useAuth } from '../auth.jsx';
 import { useFavoriteRoasters } from '../hooks/useFavoriteRoasters.jsx';
+import { usePinnedSectionOpen } from '../hooks/usePinnedSectionOpen.js';
 
 const SORT_FIELDS = [
   'distance',
@@ -36,6 +37,12 @@ const SORT_FIELDS = [
 
 const ROASTER_SINGLE_KEYS = ['q', 'region', 'country'];
 const NO_MULTI_KEYS = new Set();
+
+// Pinned roasters get their own group above the directory. Up to this many
+// the group is always open (it's a short list); past it, it starts collapsed
+// so a long run of favourites doesn't push the directory below the fold.
+// The visitor's explicit open/closed choice is remembered.
+const PINNED_COLLAPSE_THRESHOLD = 3;
 
 // ¢/g range for a roaster row. The /roasters/summary endpoint precomputes both
 // spans server-side (cpg_min/max = in-stock only, cpg_min_all/max_all = every
@@ -67,6 +74,56 @@ function priceLabel(range) {
 function shipLabel(r) {
   if (r.shipping_cost == null) return null;
   return Number(r.shipping_cost) === 0 ? 'Free ship' : `${formatCAD(r.shipping_cost)} ship`;
+}
+
+/**
+ * Heading for the pinned-roasters group. A real <button> with aria-expanded
+ * when the group is collapsible (more than PINNED_COLLAPSE_THRESHOLD pins);
+ * otherwise a static heading — a short list is always open, so a toggle
+ * would be noise. Collapsed, it previews the first three names so the bar
+ * reads as content rather than an empty control.
+ */
+function PinnedGroupHeader({ id, controls, count, names, collapsible, expanded, onToggle }) {
+  const label = `Pinned roasters (${count})`;
+  const preview = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+  const heading = (
+    <span className="inline-flex items-center gap-2 min-w-0">
+      <Icon name="heart" size={15} className="fill-current text-accent flex-shrink-0" />
+      <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted whitespace-nowrap">
+        {label}
+      </span>
+    </span>
+  );
+
+  if (!collapsible) {
+    return (
+      <h2 id={id} className="flex items-center min-h-[2rem]">
+        {heading}
+      </h2>
+    );
+  }
+
+  return (
+    <h2 id={id} className="m-0">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={controls}
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 min-h-[2.75rem] -mx-1 px-1 rounded-lg text-left hover:bg-surface-muted transition-colors"
+      >
+        <span className="flex items-center gap-3 min-w-0">
+          {heading}
+          {!expanded && <span className="text-sm text-fg-muted truncate">{preview}</span>}
+        </span>
+        <Icon
+          name="chevronDown"
+          size={16}
+          className={`flex-shrink-0 text-fg-muted transition-transform ${expanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+    </h2>
+  );
 }
 
 export default function RoastersPage() {
@@ -199,15 +256,6 @@ export default function RoastersPage() {
       }
     });
 
-    // Pinned roasters float to the top, keeping the active sort order within
-    // each group (stable partition — not a sort key, so column sorting still
-    // reads naturally inside both groups).
-    if (user && favoriteIds.size) {
-      list = [
-        ...list.filter((r) => favoriteIds.has(r.id)),
-        ...list.filter((r) => !favoriteIds.has(r.id)),
-      ];
-    }
     return list;
   }, [
     roasters,
@@ -222,6 +270,32 @@ export default function RoastersPage() {
     favoriteIds,
     pinnedOnly,
   ]);
+
+  // Pinned roasters render as their own group above the directory instead of
+  // being partitioned into the same list: with more than a handful pinned,
+  // the first screen was all favourites and the directory started below the
+  // fold. When the Pinned chip is on the whole list IS the favourites, so no
+  // separate group. Both halves keep the active sort order, and the group
+  // honours the active filters (a BC filter shows only BC pins).
+  const showPinnedGroup = Boolean(user && favoriteIds.size && !pinnedOnly);
+  const pinnedRows = useMemo(
+    () => (showPinnedGroup ? rows.filter((r) => favoriteIds.has(r.id)) : []),
+    [rows, favoriteIds, showPinnedGroup],
+  );
+  const mainRows = useMemo(
+    () => (showPinnedGroup ? rows.filter((r) => !favoriteIds.has(r.id)) : rows),
+    [rows, favoriteIds, showPinnedGroup],
+  );
+  const [pinnedOpenPref, setPinnedOpenPref] = usePinnedSectionOpen();
+  const pinnedCollapsible = pinnedRows.length > PINNED_COLLAPSE_THRESHOLD;
+  const pinnedExpanded = !pinnedCollapsible || pinnedOpenPref === true;
+  const pinnedHeaderProps = {
+    count: pinnedRows.length,
+    names: pinnedRows.map((r) => r.name),
+    collapsible: pinnedCollapsible,
+    expanded: pinnedExpanded,
+    onToggle: () => setPinnedOpenPref(!pinnedExpanded),
+  };
 
   function toggleSort(field) {
     if (!SORT_FIELDS.includes(field)) return;
@@ -262,6 +336,133 @@ export default function RoastersPage() {
       </div>
     );
   }
+
+  // Both list renderers are shared by the pinned group and the main list so
+  // the two can never drift apart visually.
+  const renderMobileCard = (r) => {
+    const beanCount = showOutOfStock ? (r.coffees_count ?? 0) : r._inStockCount;
+    const cityRegion = [r.city, r.region].filter(Boolean).join(', ');
+    const ship = shipLabel(r);
+    return (
+      <li key={r.id}>
+        <Link
+          to={`/beans?roaster=${r.slug}`}
+          className="block bg-surface rounded-2xl border border-border p-4 hover:border-border-strong active:bg-surface-muted transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-fg truncate">{r.name}</div>
+              {r.is_online_only ? (
+                <Badge tone="info" className="mt-0.5">
+                  Online only
+                </Badge>
+              ) : (
+                <div className="flex items-center gap-1 text-sm text-fg-muted truncate">
+                  <Icon name="pin" size={13} className="flex-shrink-0 text-fg-subtle" />
+                  <span className="truncate">{cityRegion || '—'}</span>
+                </div>
+              )}
+            </div>
+            {location && r._distanceKm != null && (
+              <span className="text-xs font-medium text-fg-muted bg-surface-muted px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0">
+                {formatKm(r._distanceKm)}
+              </span>
+            )}
+            <FavoriteRoasterButton roaster={r} className="flex-shrink-0 -mr-1" />
+          </div>
+          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2 text-sm">
+            <span className="inline-flex items-center gap-1.5 text-fg-muted min-w-0">
+              <Icon name="coffee" size={15} className="flex-shrink-0 text-fg-subtle" />
+              <span className="truncate">
+                {beanCount} {beanCount === 1 ? 'bean' : 'beans'}
+              </span>
+            </span>
+            <span className={`font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
+              {priceLabel(r._range)}
+            </span>
+            {ship && (
+              <span className="inline-flex items-center gap-1.5 text-fg-muted whitespace-nowrap">
+                <Icon name="truck" size={15} className="flex-shrink-0 text-fg-subtle" />
+                {ship}
+              </span>
+            )}
+          </div>
+        </Link>
+      </li>
+    );
+  };
+
+  const renderDesktopRow = (r) => (
+    <tr
+      key={r.id}
+      onClick={() => navigate(`/beans?roaster=${r.slug}`)}
+      className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors"
+    >
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <FavoriteRoasterButton roaster={r} className="-ml-1.5" />
+          <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
+          <Link
+            to={`/beans?roaster=${r.slug}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-semibold text-fg hover:text-accent hover:underline"
+          >
+            {r.name}
+          </Link>
+        </div>
+      </td>
+      {location && (
+        <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
+          {r._distanceKm != null ? (
+            formatKm(r._distanceKm)
+          ) : (
+            <span className="text-fg-subtle">—</span>
+          )}
+        </td>
+      )}
+      {allCountries.length > 1 && (
+        <td className="px-4 py-3 text-fg">{countryName(r.country_code)}</td>
+      )}
+      <td className="px-4 py-3 text-fg">{r.region || <span className="text-fg-subtle">—</span>}</td>
+      <td className="px-4 py-3 text-fg">
+        {r.is_online_only ? (
+          <Badge tone="info">Online only</Badge>
+        ) : (
+          r.city || <span className="text-fg-subtle">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-fg whitespace-nowrap">
+        {showOutOfStock
+          ? `${r.coffees_count ?? 0} ${(r.coffees_count ?? 0) === 1 ? 'bean' : 'beans'}`
+          : `${r._inStockCount} ${r._inStockCount === 1 ? 'bean' : 'beans'}`}
+      </td>
+      <td className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
+        {priceLabel(r._range)}
+      </td>
+      <td className="px-4 py-3 text-fg whitespace-nowrap">
+        {r.shipping_cost != null ? (
+          Number(r.shipping_cost) === 0 ? (
+            'Free'
+          ) : (
+            formatCAD(r.shipping_cost)
+          )
+        ) : (
+          <span className="text-fg-subtle">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-fg whitespace-nowrap">
+        {r.free_shipping_over != null ? (
+          formatCAD(r.free_shipping_over)
+        ) : (
+          <span className="text-fg-subtle">—</span>
+        )}
+      </td>
+    </tr>
+  );
+
+  // Fixed columns plus the two optional ones, for the full-width group rows.
+  const tableColumnCount = 7 + (location ? 1 : 0) + (allCountries.length > 1 ? 1 : 0);
 
   return (
     <>
@@ -426,61 +627,36 @@ export default function RoastersPage() {
                 <Icon name={dir === 'asc' ? 'arrowUp' : 'arrowDown'} size={18} />
               </button>
             </div>
-            <ul className="space-y-3">
-              {rows.map((r) => {
-                const beanCount = showOutOfStock ? (r.coffees_count ?? 0) : r._inStockCount;
-                const cityRegion = [r.city, r.region].filter(Boolean).join(', ');
-                const ship = shipLabel(r);
-                return (
-                  <li key={r.id}>
-                    <Link
-                      to={`/beans?roaster=${r.slug}`}
-                      className="block bg-surface rounded-2xl border border-border p-4 hover:border-border-strong active:bg-surface-muted transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-fg truncate">{r.name}</div>
-                          {r.is_online_only ? (
-                            <Badge tone="info" className="mt-0.5">
-                              Online only
-                            </Badge>
-                          ) : (
-                            <div className="flex items-center gap-1 text-sm text-fg-muted truncate">
-                              <Icon name="pin" size={13} className="flex-shrink-0 text-fg-subtle" />
-                              <span className="truncate">{cityRegion || '—'}</span>
-                            </div>
-                          )}
-                        </div>
-                        {location && r._distanceKm != null && (
-                          <span className="text-xs font-medium text-fg-muted bg-surface-muted px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0">
-                            {formatKm(r._distanceKm)}
-                          </span>
-                        )}
-                        <FavoriteRoasterButton roaster={r} className="flex-shrink-0 -mr-1" />
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2 text-sm">
-                        <span className="inline-flex items-center gap-1.5 text-fg-muted min-w-0">
-                          <Icon name="coffee" size={15} className="flex-shrink-0 text-fg-subtle" />
-                          <span className="truncate">
-                            {beanCount} {beanCount === 1 ? 'bean' : 'beans'}
-                          </span>
-                        </span>
-                        <span className={`font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}>
-                          {priceLabel(r._range)}
-                        </span>
-                        {ship && (
-                          <span className="inline-flex items-center gap-1.5 text-fg-muted whitespace-nowrap">
-                            <Icon name="truck" size={15} className="flex-shrink-0 text-fg-subtle" />
-                            {ship}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            {pinnedRows.length > 0 && (
+              <section
+                aria-labelledby="pinned-roasters-heading-mobile"
+                className="mb-5"
+                data-testid="pinned-roasters-mobile"
+              >
+                <PinnedGroupHeader
+                  id="pinned-roasters-heading-mobile"
+                  controls="pinned-roasters-list-mobile"
+                  {...pinnedHeaderProps}
+                />
+                {pinnedExpanded && (
+                  <ul id="pinned-roasters-list-mobile" className="space-y-3 mt-3">
+                    {pinnedRows.map(renderMobileCard)}
+                  </ul>
+                )}
+              </section>
+            )}
+            {mainRows.length > 0 && (
+              <>
+                {pinnedRows.length > 0 && (
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted mb-3">
+                    All roasters
+                  </h2>
+                )}
+                <ul className="space-y-3" data-testid="roasters-mobile">
+                  {mainRows.map(renderMobileCard)}
+                </ul>
+              </>
+            )}
           </div>
 
           {/* Desktop (md:+): editorial sortable table. */}
@@ -518,78 +694,33 @@ export default function RoastersPage() {
                   })}
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => navigate(`/beans?roaster=${r.slug}`)}
-                    className="hover:bg-surface-muted border-b border-border last:border-b-0 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <FavoriteRoasterButton roaster={r} className="-ml-1.5" />
-                        <RoasterAvatar name={r.name} faviconUrl={r.favicon_url} size={40} />
-                        <Link
-                          to={`/beans?roaster=${r.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="font-semibold text-fg hover:text-accent hover:underline"
-                        >
-                          {r.name}
-                        </Link>
-                      </div>
-                    </td>
-                    {location && (
-                      <td className="px-4 py-3 text-fg-muted whitespace-nowrap">
-                        {r._distanceKm != null ? (
-                          formatKm(r._distanceKm)
-                        ) : (
-                          <span className="text-fg-subtle">—</span>
-                        )}
-                      </td>
-                    )}
-                    {allCountries.length > 1 && (
-                      <td className="px-4 py-3 text-fg">{countryName(r.country_code)}</td>
-                    )}
-                    <td className="px-4 py-3 text-fg">
-                      {r.region || <span className="text-fg-subtle">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-fg">
-                      {r.is_online_only ? (
-                        <Badge tone="info">Online only</Badge>
-                      ) : (
-                        r.city || <span className="text-fg-subtle">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {showOutOfStock
-                        ? `${r.coffees_count ?? 0} ${(r.coffees_count ?? 0) === 1 ? 'bean' : 'beans'}`
-                        : `${r._inStockCount} ${r._inStockCount === 1 ? 'bean' : 'beans'}`}
-                    </td>
-                    <td
-                      className={`px-4 py-3 font-bold whitespace-nowrap ${cpgClass(r._range.min)}`}
-                    >
-                      {priceLabel(r._range)}
-                    </td>
-                    <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.shipping_cost != null ? (
-                        Number(r.shipping_cost) === 0 ? (
-                          'Free'
-                        ) : (
-                          formatCAD(r.shipping_cost)
-                        )
-                      ) : (
-                        <span className="text-fg-subtle">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-fg whitespace-nowrap">
-                      {r.free_shipping_over != null ? (
-                        formatCAD(r.free_shipping_over)
-                      ) : (
-                        <span className="text-fg-subtle">—</span>
-                      )}
+              {pinnedRows.length > 0 && (
+                <tbody id="pinned-roasters-rows-desktop" data-testid="pinned-roasters-desktop">
+                  <tr className="border-b border-border bg-surface-muted">
+                    <td colSpan={tableColumnCount} className="px-4 py-1.5">
+                      <PinnedGroupHeader
+                        id="pinned-roasters-heading-desktop"
+                        controls="pinned-roasters-rows-desktop"
+                        {...pinnedHeaderProps}
+                      />
                     </td>
                   </tr>
-                ))}
+                  {pinnedExpanded && pinnedRows.map(renderDesktopRow)}
+                </tbody>
+              )}
+              <tbody data-testid="roasters-desktop">
+                {pinnedRows.length > 0 && mainRows.length > 0 && (
+                  <tr className="border-b border-border bg-surface-muted">
+                    <th
+                      colSpan={tableColumnCount}
+                      scope="colgroup"
+                      className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-fg-muted"
+                    >
+                      All roasters
+                    </th>
+                  </tr>
+                )}
+                {mainRows.map(renderDesktopRow)}
               </tbody>
             </table>
           </div>
