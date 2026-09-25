@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // NOTE: the design-system showcase (_showcase.html) is intentionally NOT
@@ -38,5 +39,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: false,
     setupFiles: ['./src/test/setup.js'],
+    // e2e/*.spec.js are Playwright tests with their own runner (npm run test:e2e).
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });

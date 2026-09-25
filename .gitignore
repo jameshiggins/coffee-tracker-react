@@ -31,3 +31,8 @@ Thumbs.db
 .claude
 
 .vercel
+
+# Playwright (npm run test:e2e)
+dist-e2e
+playwright-report
+test-results
