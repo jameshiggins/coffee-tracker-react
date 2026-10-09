@@ -6,7 +6,10 @@ import StarRating from '../ui/StarRating.jsx';
 
 // Common brew methods + an "Other…" escape hatch that reveals a free-text
 // field (the API stores brew_method as free text, so customs are first-class).
-const BREW_METHODS = ['espresso', 'v60', 'aeropress', 'french press', 'chemex', 'moka pot', 'cold brew', 'other'];
+const BREW_METHODS = [
+  'espresso', 'v60', 'aeropress', 'french press', 'chemex', 'moka pot',
+  'oxo rapid brewer', 'percolator', 'syphon', 'cold brew', 'other',
+];
 
 const inputCls =
   'w-full px-3 py-2 border border-border rounded-lg text-sm bg-surface text-fg ' +

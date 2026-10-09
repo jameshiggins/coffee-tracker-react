@@ -239,6 +239,17 @@ export default function RoastersPage() {
         <p className="mt-1 text-sm text-fg-muted">
           {roasters ? `${totalShipping} roasters` : 'Loading…'} · live beans, prices &amp; shipping
         </p>
+        {/* Plain-language "what is this?" for first-time visitors. The same
+            explanation already exists for crawlers (index.html meta + JSON-LD,
+            useSeo above); this is the human-visible version, since the h1 is
+            sr-only. "Every day" is the roasters:import-all schedule (Kernel.php,
+            daily at 11:00 UTC) — keep the two in sync if that cadence changes. */}
+        <p className="mt-2 text-sm text-fg-muted max-w-2xl">
+          Roastmap indexes Canadian specialty roasters and the beans they have on
+          the shelf. Every day it re-reads each roaster&apos;s own shop for
+          what&apos;s listed — origin, process, roast level, price and stock — so
+          the whole country&apos;s coffee is searchable in one place.
+        </p>
 
         <div className="mt-3.5 relative">
           <Icon name="search" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" />
